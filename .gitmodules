@@ -1,4 +1,4 @@
 [submodule "data"]
 	path = data
-	url = ../gnsstk-data.git
+	url = https://github.com/SGL-UT/gnsstk-data.git
 	branch = main
