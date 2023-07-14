@@ -174,6 +174,7 @@ namespace gnsstk
          default:
             return RefFrameRlz::Unknown;
       }
+      return RefFrameRlz::Unknown;
    }
 
    namespace StringUtils
