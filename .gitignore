@@ -2,6 +2,8 @@
 *~
 .*.swp
 .idea
+.vscode
+CMakePresets.json
 
 # Python compiled byte-code
 *.pyc
@@ -32,3 +34,6 @@ gnsstk_doc_cpp.tgz
 _build/
 api/
 quickref.rst
+NewNavInc.h
+NewNavInit.h
+/.vs

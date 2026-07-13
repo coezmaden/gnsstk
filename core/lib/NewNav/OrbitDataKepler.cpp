@@ -41,6 +41,7 @@
 #include "GPSWeekSecond.hpp"
 #include "GPSEllipsoid.hpp"
 #include "TimeString.hpp"
+#include "DebugTrace.hpp"
 
 using namespace std;
 
@@ -168,6 +169,7 @@ namespace gnsstk
    getXvt(const CommonTime& when, const EllipsoidModel& ell, Xvt& xvt,
           const ObsID& oid)
    {
+      DEBUGTRACE_FUNCTION();
       GPSWeekSecond gpsws = (Toe);
       double ToeSOW = gpsws.sow;
       double ea;              // eccentric anomaly
@@ -226,7 +228,6 @@ namespace gnsstk
       xvt.clkbias = svClockBias(when);
       xvt.clkdrift = svClockDrift(when);
       xvt.frame = RefFrame(frame, when);
-
          // Compute true anomaly
       q     = SQRT( 1.0e0 - lecc*lecc);
       sinea = ::sin(ea);
@@ -313,6 +314,7 @@ namespace gnsstk
    double OrbitDataKepler ::
    svRelativity(const CommonTime& when, const EllipsoidModel& ell) const
    {
+      DEBUGTRACE_FUNCTION();
       double twoPI  = 2.0e0 * PI;
       double sqrtgm = SQRT(ell.gm());
       double elapte = when - Toe;
@@ -340,6 +342,7 @@ namespace gnsstk
    double OrbitDataKepler ::
    svClockBias(const CommonTime& when) const
    {
+      DEBUGTRACE_FUNCTION();
       double dtc, elaptc;
       elaptc = when - Toc;
       dtc = af0 + elaptc * ( af1 + elaptc * af2 );
@@ -350,26 +353,29 @@ namespace gnsstk
    double OrbitDataKepler ::
    svClockDrift(const CommonTime& when) const
    {
+      DEBUGTRACE_FUNCTION();
       double drift, elaptc;
       elaptc = when - Toc;
       drift = af1 + elaptc * af2;
       return drift;
    }
 
-
    bool OrbitDataKepler ::
-   isSameData(const NavDataPtr& right) const
+   isSameData(const NavDataPtr& right, bool ignore_timestamp) const
    {
+      DEBUGTRACE_FUNCTION();
       const std::shared_ptr<OrbitDataKepler> rhs =
          std::dynamic_pointer_cast<OrbitDataKepler>(right);
+
       if (!rhs)
       {
-            // not the same type.
          return false;
       }
-      return (NavData::isSameData(right) &&
+
+      return (NavData::isSameData(right, ignore_timestamp) &&
               (Toe == rhs->Toe) &&
               (Toc == rhs->Toc) &&
+              (health == rhs->health) &&
               (Cuc == rhs->Cuc) &&
               (Cus == rhs->Cus) &&
               (Crc == rhs->Crc) &&
@@ -391,12 +397,14 @@ namespace gnsstk
               (af0 == rhs->af0) &&
               (af1 == rhs->af1) &&
               (af2 == rhs->af2));
-   }
 
+      // Checked 6/13/2024
+   }
 
    std::list<std::string> OrbitDataKepler ::
    compare(const NavDataPtr& right) const
    {
+      DEBUGTRACE_FUNCTION();
          // OrbitData doesn't have any data, but OrbitData::compare
          // instead throws an exception if called so as to make sure
          // unimplemented children make it clear they're

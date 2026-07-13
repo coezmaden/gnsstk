@@ -92,7 +92,7 @@ EOF
 }
 
 
-while getopts ":hab:cdepi:j:xnP:sutTKgv" OPTION; do
+while getopts ":hab:cdepi:j:xnP:sutTKgC:v" OPTION; do
     case $OPTION in
         h) usage
            exit 0
@@ -272,7 +272,12 @@ else
     args+=" -DADDRESS_SANITIZER=ON"
 fi
 
-case `uname` in
+# Check if Ninja exists, and preferentially use it over Make
+if command -v ninja; then
+    USE_NINJA="1"
+fi
+
+case $(uname) in
     MINGW32_NT-6.1)
         run cmake $args -G "Visual Studio 14 2015 Win64" $repo
         run cmake --build . --config Release
@@ -282,10 +287,15 @@ case `uname` in
         run cmake --build . --config Release
         ;;
     *)
-        echo "Run cmake $args $repo ##########################"
-        run cmake $args $repo
-        run make all -j $num_threads
-        #run make all -j $num_threads VERBOSE=1   # BWT make make verbose
+        if [[ "$USE_NINJA" -eq "1" ]]; then
+            echo "Run cmake -G "Ninja" $args $repo ##########################"
+            run cmake -G "Ninja" $args $repo
+            run ninja -j $num_threads
+        else
+            echo "Run cmake $args $repo ##########################"
+            run cmake $args $repo
+            run make all -j $num_threads
+        fi
 esac
 
 
@@ -316,7 +326,11 @@ if [ $install ]; then
         run cmake --build . --config Release --target install
         ;;
     *)
-        run make install -j $num_threads
+        if [[ "$USE_NINJA" -eq "1" ]]; then
+            run ninja install -j "$num_threads"
+        else
+            run make install -j "$num_threads"
+        fi
     esac
 fi
 
@@ -344,8 +358,13 @@ if [ $build_packages ]; then
             run cpack -C Release
             ;;
         *)
-            run make package
-            run make package_source
+            if [[ "$USE_NINJA" -eq "1" ]]; then
+                run ninja package
+                run ninja package_source
+            else
+                run make package
+                run make package_source
+            fi
     esac
     if [[ -z $exclude_python && $build_ext ]] ; then
         cd "$build_root"/swig/install_package

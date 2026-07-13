@@ -43,6 +43,7 @@
 #include <map>
 #include "NavSignalID.hpp"
 #include "CommonTime.hpp"
+#include "TimeRange.hpp"
 #include "NavData.hpp"
 #include "NavValidityType.hpp"
 #include "NavMessageID.hpp"
@@ -54,6 +55,13 @@ namespace gnsstk
 {
       /// @ingroup NavFactory
       //@{
+
+   class NavDataFactory; // forward declaration
+
+      /// Managed pointer to NavDataFactory.
+   typedef std::shared_ptr<NavDataFactory> NavDataFactoryPtr;
+      /// Map signal to a factory.
+   typedef std::multimap<NavSignalID, NavDataFactoryPtr> NavDataFactoryMap;
 
       /** Abstract base class that defines the interface for searching
        * for navigation data. */
@@ -92,6 +100,25 @@ namespace gnsstk
       virtual bool find(const NavMessageID& nmid, const CommonTime& when,
                         NavDataPtr& navOut, SVHealth xmitHealth,
                         NavValidityType valid, NavSearchOrder order) = 0;
+      
+         /** Return all messages that match the criteria set by the following arguments
+          * @param[in] nmid Specify the message type, satellite and
+          *   codes to match.
+          * @param[in] whenRange The time range of interest to search for data. Orbit data
+          *   object (Ephemeris, Almanac) is "within" this range if its fit interval overlaps
+          *   this range. Fit interval computed in the overloaded fixFit() and overlaps as defined
+          *   in gnsstk::TimeRange.
+          * @param[in] xmitHealth The desired health status of the
+          *   transmitting satellite.
+          * @param[out] navOut The resulting navigation messages.
+          * @param[in] unique Return only unique messages. Uniqueness is defined by isSameData() 
+          *   on each NavData object. See documentation of isSameData() for more info.
+          * @param[in] valid Specify whether to search only for valid
+          *   or invalid messages, or both.
+          * @return true if successful.  If false, navOut will be untouched. */
+      virtual bool findAll(const NavMessageID& nmid, const TimeRange& whenRange,
+                               NavDataPtrList& navOut, bool unique, SVHealth xmitHealth,
+                               NavValidityType valid) = 0;
 
          /** Get the offset, in seconds, to apply to times when
           * converting them from fromSys to toSys.
@@ -372,13 +399,43 @@ namespace gnsstk
       virtual void setControl(const FactoryControl& ctrl)
       { factControl = ctrl; }
 
+         /** @private Internal use for now. May be deprecated in the future.
+          * Do not use this method directy. Use the constructor of the factories
+          * such as \ref MultiFormatNavDataFactory(refEpoch) to pass
+          * the reference epoch.
+          * 
+          * Set the reference time epoch for this and any child NavDataFactory
+          * objects.
+          * @param[in] refEpoch The reference time. Assumed to be invalid if
+          *   equivalent to \p CommonTime::BEGINNING_OF_TIME or
+          *   \p CommonTime::END_OF_TIME.
+          * @note This should be called before loading data into this class.
+          *   Data that has already been loaded will not be affected by this
+          *   call. */
+      virtual void setRefEpoch(const CommonTime& refEpoch);
+
          /** Define which signals this factory supports.  This will be
           * empty by default, which means that NavLibrary would not
           * use this factory, so it is up to the derived classes to
           * fill out the signals as appropriate. */
       NavSignalSet supportedSignals;
 
+         /** Clone the factory.
+          *
+          * This polymorphic clone method is required for 
+          * MultiFormatNavDataFactory to duplicate it's static list of known
+          * Nav Data Factories.
+          *
+          * @warning Currently this method does not guarantee a deep copy
+          *   of underlying data, such as in the case of NavDataFactoryWithStore
+          *   derived classes.
+          *
+          * @returns a shared pointer to the cloned factory
+          */ 
+      virtual std::unique_ptr<NavDataFactory> clone() = 0;
+      
    protected:
+
          /// Configuration for the behavior of this factory.
       FactoryControl factControl;
 
@@ -392,12 +449,16 @@ namespace gnsstk
          /** Determines which types of navigation message data the
           * factory should be processing. */
       NavMessageTypeSet procNavTypes;
-   };
 
-      /// Managed pointer to NavDataFactory.
-   typedef std::shared_ptr<NavDataFactory> NavDataFactoryPtr;
-      /// Map signal to a factory.
-   typedef std::multimap<NavSignalID, NavDataFactoryPtr> NavDataFactoryMap;
+         /** If the NavData produced by this factory contains a time ambiguity
+          * (e.g. GPS LNAV's 10-bit week rollover), child classes SHOULD
+          * disambiguate to the epoch that minimizes the time differential to
+          * this time (although not every child class is required to define the
+          * disambiguation).
+          * @note At C++17, this would better be handled by \p std::optional */
+      CommonTime referenceTimeEpoch{};
+      bool referenceTimeEpochValid{false};
+   };
 
       //@}
 

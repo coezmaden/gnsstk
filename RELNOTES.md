@@ -1,102 +1,46 @@
-GNSSTk 14.0.0 Release Notes
+GNSSTk 15.0.0 Release Notes
 ========================
 
  * This release introduces a major update to the toolkit.
  * It includes the following:
-   * Refactoring HelmertTransform into HelmertTransformer and reference frames into RefFrame.
-   * Adding signal details to nav dump methods.
-   * Adding group path delay calculator GroupPathCorr and related classes. (See New Modules below).
-   * Refactoring duplicate raw range implementations into a single class.
-   * Moving NewNav enums to the namespace level for consistency.
-   * Deprecating support for Debian 9.
-   * Adding support for Ubuntu20.04 (focal)
- * Additionally, it contains minor library updates and bug fixes
+   * Adding std C++17 support while deprecating std C++11 support. (**api breaking**)
+   * Updating MultiFormatNavDataFactory and PNBMultiGNSSNavDataFactory to allow multiple independent instances. (**api breaking**)
+   * Updating  GNSSconstants Align PI, TWO_PI, SQRT_PI to the exact specification of the IS-GPS-200
+ * Additionally, it contains bug fixes updates and build CI/CD updates.
 
-Updates since v13.8.0
+Updates since v14.6.0
 ---------------------
 
+**Known Issues**
+  * Some distributions (such as RHEL 8) may support different versions of gcc (such as gcc 8.x and 9.x but gcc 8.x is the default). A version of gcc (such as gcc 9 on RHEL 8) that supports C++17 and the C++17 ABI is stable must be chosen to build. Note that gcc 8.x on RHEL 8 may support some C++17 but the C++17 ABI is not stable and thus should not be used.
+  * Support for MSVC14 (Microsoft Visual Studio 14) and older compilers is removed. Only Microsoft Visual Studio 19 and newer versions are supported.
+
 **Build System and Test Suite**
-  * Update the clean build parameter
-  * Update SWIG cmake rules now that we're no longer supporting cmake version 2
-  * Update compiler to Visual Studio 2019 in the Windows build scripts.
+  * Fix df_diff comparisons, off-by-one error, and cmake test usage of df_diff.
 
 **Gitlab CI**
-  * Update Deprecated Debian 9 build
-  * Add Ubuntu 20.04 pipeline jobs
+  * Update Fortify pipeline scan job
+  * Update submodule ref to point to latest gnsstk-data merge
+  * Fix gitlab pipeline jobs retry for only system failures.
+  * Fix Fortify pipeline retry condition
 
 **Library Changes**
-  * Add group path delay calculator (GroupPathCorr and related classes).
-  * Update Refactor HelmertTransform into HelmertTransformer
-  * Update Refactor reference frames into RefFrame
-  * Update the nonsensical ISC interface in NavLibrary with one that does make sense.
-  * Update Refactor duplicate raw range implementations into a single class.
-  * Update group path corrector navLib from shared_ptr to reference to work around swig/python problem
-  * Update Move NewNav enums to the namespace level for consistency
-  * Update NewNav docs
-  * Add NavData::clone method
-  * Add signal details to nav dump methods
-  * Add group path delay calculator (GroupPathCorr and related classes).
-  * Add a CorrectorType that was missed
+  * Add C++17 support for Toolkits
+  * Update MultiFormatNavDataFactory and PNBMultiGNSSNavDataFactory to allow multiple independent instances.
+  * Update GNSSconstants Align PI, TWO_PI, SQRT_PI to the exact specification of the IS-GPS-200
 
-Fixes since v13.8.0
+Fixes since v14.6.0
 --------------------
-  * Fix swig build error
+  * Fix EngNav such that subframe pattern ID look-ups disallow unassigned SV ID values.
+  * Fix PNBBDSD1NavDataFactory Change SOW cracking from asSignedDouble() to asUnsignedInt()
+  * Fix SNAPPER Check ptr for null before calling string constructor. Running SNAPPER with lambda in cloud doesn't have the env variable $HOME by default
+  * Fix GPSLNavEph fit interval computation.
+  * Fix correct destruction of NavData with virtual destructor
 
 Removed Code due to Deprecation
 -------------------------------
-     core/lib/GNSSEph/GloEphemeris.cpp
-     core/lib/GNSSEph/GloEphemeris.hpp
+  * No longer build and publish packages with std C++11
 
 New Modules
 -------------------------------
-     core/lib/FileHandling/MetReader.hpp
-     core/lib/GNSSCore/BCISCorrector.cpp
-     core/lib/GNSSCore/BCISCorrector.hpp
-     core/lib/GNSSCore/BCIonoCorrector.cpp
-     core/lib/GNSSCore/BCIonoCorrector.hpp
-     core/lib/GNSSCore/CorrDupHandling.cpp
-     core/lib/GNSSCore/CorrDupHandling.hpp
-     core/lib/GNSSCore/CorrectionResult.hpp
-     core/lib/GNSSCore/CorrectionResults.cpp
-     core/lib/GNSSCore/CorrectionResults.hpp
-     core/lib/GNSSCore/CorrectorType.cpp
-     core/lib/GNSSCore/CorrectorType.hpp
-     core/lib/GNSSCore/GroupPathCorr.cpp
-     core/lib/GNSSCore/GroupPathCorr.hpp
-     core/lib/GNSSCore/GroupPathCorrector.hpp
-     core/lib/GNSSCore/HelmertTransformer.cpp
-     core/lib/GNSSCore/HelmertTransformer.hpp
-     core/lib/GNSSCore/RefFrame.cpp
-     core/lib/GNSSCore/RefFrame.hpp
-     core/lib/GNSSCore/RefFrameRlz.cpp
-     core/lib/GNSSCore/RefFrameRlz.hpp
-     core/lib/GNSSCore/RefFrameSys.cpp
-     core/lib/GNSSCore/RefFrameSys.hpp
-     core/lib/GNSSCore/TransformLibrary.cpp
-     core/lib/GNSSCore/TransformLibrary.hpp
-     core/lib/GNSSCore/Transformer.hpp
-     core/lib/GNSSCore/TropCorrector.hpp
-     core/lib/GNSSEph/RawRange.cpp
-     core/lib/GNSSEph/RawRange.hpp
-     core/lib/NewNav/GLOFNavPCode.cpp
-     core/lib/NewNav/GLOFNavPCode.hpp
-     core/lib/NewNav/GLOFNavSatType.hpp
-     core/lib/NewNav/GPSLNavL2Codes.cpp
-     core/lib/NewNav/GPSLNavL2Codes.hpp
-     core/tests/FileHandling/MetReader_T.cpp
-     core/tests/GNSSCore/BCISCorrector_T.cpp
-     core/tests/GNSSCore/BCIonoCorrector_T.cpp
-     core/tests/GNSSCore/CorrDupHandling_T.cpp
-     core/tests/GNSSCore/CorrectionResults_T.cpp
-     core/tests/GNSSCore/CorrectorType_T.cpp
-     core/tests/GNSSCore/GroupPathCorr_T.cpp
-     core/tests/GNSSCore/GroupPathCorrector_T.cpp
-     core/tests/GNSSCore/HelmertTransformer_T.cpp
-     core/tests/GNSSCore/RawRange_T.cpp
-     core/tests/GNSSCore/RefFrameRlz_T.cpp
-     core/tests/GNSSCore/RefFrameSys_T.cpp
-     core/tests/GNSSCore/TransformLibrary_T.cpp
-     core/tests/GNSSCore/TropCorrector_T.cpp
-     core/tests/Geomatics/PreciseRange_T.cpp
-     swig/SWIGHelpers/std_tuple.i
-     swig/tests/__init__.py
+     core/tests/GNSSCore/GNSSconstants_T.cpp

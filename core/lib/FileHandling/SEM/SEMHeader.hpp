@@ -73,7 +73,8 @@ namespace gnsstk
    {
    public:
          /// Constructor.
-      SEMHeader() {}
+      SEMHeader() : nearReferenceEpochInWeeks(-1) {}
+      SEMHeader(long epochInWeeks) : nearReferenceEpochInWeeks(epochInWeeks) {}
 
          /// Destructor
       virtual ~SEMHeader() {}
@@ -82,12 +83,21 @@ namespace gnsstk
          /// available in the SEM file.  If this value is 0 it is ignored.
          /// Otherwise, the 10-bit week is moved into the GPS Epoch
          /// centered on the given full week.
+         /// @deprecated In "NewNav" architecture, use
+         /// \ref gnsstk::NavDataFactory::setRefEpoch(ref) to set 
+         /// the Reference Epoch needed to process \ref SEMHeader correctly.
+         /// Issue GL #520 will remove this in the future.
       GNSSTK_EXPORT static short nearFullWeek;
 
       short numRecords;
       std::string Title;
       short week;
       long Toa;
+
+      /// If this value is -1, this value will not be used as this is not
+      /// set explicitly by calling the API \ref gnsstk::NavDataFactory::setRefEpoch(ref)
+      /// and the deprecated \ref nearFullWeek will be used for backwards compatibility.
+      long nearReferenceEpochInWeeks;
 
 
          /**
@@ -125,6 +135,11 @@ namespace gnsstk
       virtual void reallyGetRecord(FFStream& s);
 
    }; // class SEMHeader
+
+   namespace detail // Implementation details for internal use. Subject to change.
+   {
+      int32_t getDisAmbiguatedNearbyWeek(int32_t refEpochInWeeks, int32_t almanacWeek);
+   }
 
       //@}
 

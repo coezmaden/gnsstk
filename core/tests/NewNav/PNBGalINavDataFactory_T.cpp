@@ -47,6 +47,7 @@
 #include "GalINavISC.hpp"
 #include "GALWeekSecond.hpp"
 #include "TimeString.hpp"
+#include "DebugTrace.hpp"
 
 using namespace std;
 
@@ -87,6 +88,8 @@ public:
    unsigned addDataHealthTest();
       /// Test addData with time offset data selected only
    unsigned addDataTimeTest();
+      // Test addData with page pairs of ephemeris
+   unsigned addDataPagePairsTest();
       /// One additional combo test.
    unsigned addDataEphHealthTest();
       /// Another combo test that makes sure alm health is processed correctly.
@@ -99,6 +102,12 @@ public:
    unsigned processOffsetTest();
       // week rollover test for decoding ephemerides
    unsigned processEphWRTest();
+      // A common set of checks between processEphTest and addDataPagePairsTest
+   void checkNav(gnsstk::TestUtil& testFramework, 
+                 gnsstk::NavDataPtrList& navOut,
+                 gnsstk::NavMessageID&, gnsstk::NavMessageID&,
+                 gnsstk::CommonTime&, gnsstk::CommonTime&,
+                 gnsstk::CommonTime&, gnsstk::CommonTime&); 
 
 #include "GalINavTestDataDecl.hpp"
 };
@@ -359,41 +368,17 @@ addDataAlmHealthTest()
    TURETURN();
 }
 
-
-unsigned PNBGalINavDataFactory_T ::
-processEphTest()
+void PNBGalINavDataFactory_T ::
+checkNav(gnsstk::TestUtil& testFramework, gnsstk::NavDataPtrList& navOut,
+         gnsstk::NavMessageID& nmidExpE5b, gnsstk::NavMessageID& nmidExpE1B,
+         gnsstk::CommonTime& toeExp, gnsstk::CommonTime& tocExp,
+         gnsstk::CommonTime& beginExp, gnsstk::CommonTime& endExp)
 {
-   TUDEF("PNBGalINavDataFactory", "processEph");
-   GalFactoryCounter fc(testFramework);
-   gnsstk::PNBGalINavDataFactory uut;
-   gnsstk::NavMessageID nmidExpE1B(
-      gnsstk::NavSatelliteID(1, 1, gnsstk::SatelliteSystem::Galileo,
-                            gnsstk::CarrierBand::L1, gnsstk::TrackingCode::E1B,
-                            gnsstk::NavType::GalINAV),
-      gnsstk::NavMessageType::Health);
-   gnsstk::NavMessageID nmidExpE5b(
-      gnsstk::NavSatelliteID(1, 1, gnsstk::SatelliteSystem::Galileo,
-                            gnsstk::CarrierBand::E5b, gnsstk::TrackingCode::E5bI,
-                            gnsstk::NavType::GalINAV),
-      gnsstk::NavMessageType::Health);
-   gnsstk::CommonTime toeExp = gnsstk::GALWeekSecond(1014,517200.0);
-   gnsstk::CommonTime tocExp = gnsstk::GALWeekSecond(1014,517200.0);
-   gnsstk::CommonTime beginExp = ephINAVGalWT1ct;
-   gnsstk::CommonTime endExp = toeExp + (4.0 * 3600.0);
-   gnsstk::NavDataPtrList navOut;
    gnsstk::GalINavEph *eph;
    gnsstk::GalINavHealth *hea;
    gnsstk::GalINavIono *iono;
    gnsstk::GalINavISC *isc;
-   TUASSERTE(bool, true, uut.processEph(1, ephINAVGalWT1, navOut));
-   fc.validateResults(navOut, __LINE__);
-   TUASSERTE(bool, true, uut.processEph(2, ephINAVGalWT2, navOut));
-   fc.validateResults(navOut, __LINE__);
-   TUASSERTE(bool, true, uut.processEph(3, ephINAVGalWT3, navOut));
-   fc.validateResults(navOut, __LINE__);
-   TUASSERTE(bool, true, uut.processEph(4, ephINAVGalWT4, navOut));
-   fc.validateResults(navOut, __LINE__);
-   TUASSERTE(bool, true, uut.processEph(5, ephINAVGalWT5, navOut));
+   
    for (const auto& i : navOut)
    {
       if ((eph = dynamic_cast<gnsstk::GalINavEph*>(i.get())) != nullptr)
@@ -414,16 +399,16 @@ processEphTest()
          TUASSERTFE(9.828125000000E+01, eph->Crs);
          TUASSERTFE(-3.725290298462E-09, eph->Cis);
          TUASSERTFE(-1.490116119385E-08, eph->Cic);
-         TUASSERTFE(-3.0165642165792534435E+00, eph->M0);
+         TUASSERTFEPS(-3.0165642165792534435E+00, eph->M0, 1e-13);
          TUASSERTFE(2.529748231311E-09, eph->dn);
          TUASSERTFE(0, eph->dndot);
          TUASSERTFE(1.100952504203E-04, eph->ecc);
          TUASSERTFE(5.4406226139068603516E+03, eph->Ahalf);
          TUASSERTFE(2.9600374426954716444E+07, eph->A);
          TUASSERTFE(0, eph->Adot);
-         TUASSERTFE(2.9631768162768818975E+00, eph->OMEGA0);
-         TUASSERTFE(9.8982515960810546485E-01, eph->i0);
-         TUASSERTFE(1.4027684908239376749E-01, eph->w);
+         TUASSERTFEPS(2.9631768162768818975E+00, eph->OMEGA0, 1e-13);
+         TUASSERTFEPS(9.8982515960810546485E-01, eph->i0, 1e-13);
+         TUASSERTFEPS(1.4027684908239376749E-01, eph->w, 1e-13);
          TUASSERTFE(-5.110570018612E-09, eph->OMEGAdot);
          TUASSERTFE(-1.832219176426E-10, eph->idot);
          TUASSERTFE(-5.335179739632E-04, eph->af0);
@@ -506,6 +491,80 @@ processEphTest()
          TUASSERTFE(-5.122274E-09, isc->bgdE1E5b);
       }
    }
+
+}
+
+
+unsigned PNBGalINavDataFactory_T ::
+processEphTest()
+{
+   TUDEF("PNBGalINavDataFactory", "processEph");
+   GalFactoryCounter fc(testFramework);
+   gnsstk::PNBGalINavDataFactory uut;
+   gnsstk::NavMessageID nmidExpE1B(
+      gnsstk::NavSatelliteID(1, 1, gnsstk::SatelliteSystem::Galileo,
+                            gnsstk::CarrierBand::L1, gnsstk::TrackingCode::E1B,
+                            gnsstk::NavType::GalINAV),
+      gnsstk::NavMessageType::Health);
+   gnsstk::NavMessageID nmidExpE5b(
+      gnsstk::NavSatelliteID(1, 1, gnsstk::SatelliteSystem::Galileo,
+                            gnsstk::CarrierBand::E5b, gnsstk::TrackingCode::E5bI,
+                            gnsstk::NavType::GalINAV),
+      gnsstk::NavMessageType::Health);
+   gnsstk::CommonTime toeExp = gnsstk::GALWeekSecond(1014,517200.0);
+   gnsstk::CommonTime tocExp = gnsstk::GALWeekSecond(1014,517200.0);
+   gnsstk::CommonTime beginExp = ephINAVGalWT1ct;
+   gnsstk::CommonTime endExp = toeExp + (4.0 * 3600.0);
+   gnsstk::NavDataPtrList navOut;
+   TUASSERTE(bool, true, uut.processEph(1, ephINAVGalWT1, navOut));
+   fc.validateResults(navOut, __LINE__);
+   TUASSERTE(bool, true, uut.processEph(2, ephINAVGalWT2, navOut));
+   fc.validateResults(navOut, __LINE__);
+   TUASSERTE(bool, true, uut.processEph(3, ephINAVGalWT3, navOut));
+   fc.validateResults(navOut, __LINE__);
+   TUASSERTE(bool, true, uut.processEph(4, ephINAVGalWT4, navOut));
+   fc.validateResults(navOut, __LINE__);
+   TUASSERTE(bool, true, uut.processEph(5, ephINAVGalWT5, navOut));
+   checkNav(testFramework, navOut, nmidExpE5b, nmidExpE1B, toeExp, tocExp, 
+            beginExp, endExp);
+   fc.validateResults(navOut, __LINE__, 5, 0, 1, 0, 2, 1, 1);
+   TURETURN();
+}
+
+
+unsigned PNBGalINavDataFactory_T ::
+addDataPagePairsTest()
+{
+   TUDEF("PNBGalINavDataFactory", "addData(pagePairs)");
+   GalFactoryCounter fc(testFramework);
+   gnsstk::PNBGalINavDataFactory uut;
+   gnsstk::NavMessageID nmidExpE1B(
+      gnsstk::NavSatelliteID(1, 1, gnsstk::SatelliteSystem::Galileo,
+                            gnsstk::CarrierBand::L1, gnsstk::TrackingCode::E1B,
+                            gnsstk::NavType::GalINAV),
+      gnsstk::NavMessageType::Health);
+   gnsstk::NavMessageID nmidExpE5b(
+      gnsstk::NavSatelliteID(1, 1, gnsstk::SatelliteSystem::Galileo,
+                            gnsstk::CarrierBand::E5b, gnsstk::TrackingCode::E5bI,
+                            gnsstk::NavType::GalINAV),
+      gnsstk::NavMessageType::Health);
+   gnsstk::CommonTime toeExp = gnsstk::GALWeekSecond(1014,517200.0);
+   gnsstk::CommonTime tocExp = gnsstk::GALWeekSecond(1014,517200.0);
+   gnsstk::CommonTime beginExp = ephINAVGalWT1ct;
+   gnsstk::CommonTime endExp = toeExp + (4.0 * 3600.0);
+   gnsstk::NavDataPtrList navOut;
+   DEBUGTRACE_ENABLE();
+   TUASSERTE(bool, true, uut.addData(ephINAVGalPP1, navOut));
+   fc.validateResults(navOut, __LINE__);
+   TUASSERTE(bool, true, uut.addData(ephINAVGalPP2, navOut));
+   fc.validateResults(navOut, __LINE__);
+   TUASSERTE(bool, true, uut.addData(ephINAVGalPP3, navOut));
+   fc.validateResults(navOut, __LINE__);
+   TUASSERTE(bool, true, uut.addData(ephINAVGalPP4, navOut));
+   fc.validateResults(navOut, __LINE__);
+   TUASSERTE(bool, true, uut.addData(ephINAVGalPP5, navOut));
+   checkNav(testFramework, navOut, nmidExpE5b, nmidExpE1B, toeExp, tocExp, 
+            beginExp, endExp); 
    fc.validateResults(navOut, __LINE__, 5, 0, 1, 0, 2, 1, 1);
    TURETURN();
 }
@@ -552,13 +611,13 @@ processAlmTest()
             nmid.sat.id = 19;
             TUASSERTE(gnsstk::CommonTime, navINAVGalWT7ct, alm->timeStamp);
             TUASSERTE(gnsstk::CommonTime, navINAVGalWT7ct, alm->xmitTime);
-            TUASSERTFE(2.9141800017857466543E+00, alm->M0);
+            TUASSERTFEPS(2.9141800017857466543E+00, alm->M0, 1e-13);
             TUASSERTFE(1.068115234375E-04, alm->ecc);
             TUASSERTFE(5440.6116409941769234, alm->Ahalf);
             TUASSERTFE(29600255.028121352196, alm->A);
-            TUASSERTFE(8.669867665531157952E-01, alm->OMEGA0);
-            TUASSERTFE(0.95840136886673976679, alm->i0);
-            TUASSERTFE(2.6636617643641731235E+00, alm->w);
+            TUASSERTFEPS(8.669867665531157952E-01, alm->OMEGA0, 1e-13);
+            TUASSERTFEPS(0.95840136886673976679, alm->i0, 1e-13);
+            TUASSERTFEPS(2.6636617643641731235E+00, alm->w, 1e-13);
             TUASSERTFE(-5.48594280E-09, alm->OMEGAdot);
             TUASSERTFE(-9.5367431640625e-06, alm->af0);
             TUASSERTFE(0, alm->af1);
@@ -574,13 +633,13 @@ processAlmTest()
             nmid.sat.id = 21;
             TUASSERTE(gnsstk::CommonTime, navINAVGalWT9ct, alm->timeStamp);
             TUASSERTE(gnsstk::CommonTime, navINAVGalWT9ct, alm->xmitTime);
-            TUASSERTFE(-2.8944299991417192786E+00, alm->M0);
+            TUASSERTFEPS(-2.8944299991417192786E+00, alm->M0, 1e-13);
             TUASSERTFE(1.068115234375E-04, alm->ecc);
             TUASSERTFE(5440.6350784941769234, alm->Ahalf);
             TUASSERTFE(29600510.057341337204, alm->A);
-            TUASSERTFE(2.9605829206192875169E+00, alm->OMEGA0);
-            TUASSERTFE(0.98946447982142404776, alm->i0);
-            TUASSERTFE(8.1847462413623239819E-01, alm->w);
+            TUASSERTFEPS(2.9605829206192875169E+00, alm->OMEGA0, 1e-13);
+            TUASSERTFEPS(0.98946447982142404776, alm->i0, 1e-13);
+            TUASSERTFEPS(8.1847462413623239819E-01, alm->w, 1e-13);
             TUASSERTFE(-5.12021328E-09, alm->OMEGAdot);
             TUASSERTFE(-0.0005168914794921875, alm->af0);
             TUASSERTFE(-3.6379788070917129517e-12, alm->af1);
@@ -779,6 +838,7 @@ int main()
    errorTotal += testClass.addDataEphHealthTest();
    errorTotal += testClass.addDataAlmHealthTest();
    errorTotal += testClass.processEphTest();
+   errorTotal += testClass.addDataPagePairsTest();
    errorTotal += testClass.processAlmTest();
    errorTotal += testClass.processOffsetTest();
    errorTotal += testClass.processEphWRTest();

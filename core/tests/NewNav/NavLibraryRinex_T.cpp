@@ -115,6 +115,8 @@ public:
    { return false; }
    std::string getFactoryFormats() const override
    { return "BUNK"; }
+   std::unique_ptr<gnsstk::NavDataFactory> clone() override
+   { return std::unique_ptr<TestFactory>(new TestFactory(*this)); }
 };
 
 class RinexTestFactory : public gnsstk::RinexNavDataFactory
@@ -139,6 +141,7 @@ public:
    unsigned getHealthTest();
    unsigned getOffsetTest();
    unsigned findTest();
+   unsigned findAllTest();
       /** Make sure NavLibrary::setValidityFilter updates navValidity
        * in all factories. */
    unsigned setValidityFilterTest();
@@ -174,7 +177,7 @@ NavLibrary_T()
 unsigned NavLibrary_T ::
 getXvtTest()
 {
-   TUDEF("NavLibrary", "getXvt");
+   TUDEF("NavLibraryRinex", "getXvt");
    gnsstk::Xvt xvt;
    gnsstk::NavLibrary navLib;
    gnsstk::NavDataFactoryPtr
@@ -212,7 +215,7 @@ getXvtTest()
 unsigned NavLibrary_T ::
 getHealthTest()
 {
-   TUDEF("NavLibrary", "getHealth");
+   TUDEF("NavLibraryRinex", "getHealth");
    gnsstk::SVHealth health;
    gnsstk::NavLibrary navLib;
    gnsstk::NavDataFactoryPtr
@@ -250,7 +253,7 @@ getHealthTest()
 unsigned NavLibrary_T ::
 getOffsetTest()
 {
-   TUDEF("NavLibrary", "getOffset");
+   TUDEF("NavLibraryRinex", "getOffset");
    gnsstk::NavLibrary navLib;
    gnsstk::NavDataFactoryPtr ndfp(std::make_shared<TestFactory>());
    TestFactory *fact1 = dynamic_cast<TestFactory*>(ndfp.get());
@@ -292,7 +295,7 @@ getOffsetTest()
 unsigned NavLibrary_T ::
 findTest()
 {
-   TUDEF("NavLibrary", "find");
+   TUDEF("NavLibraryRinex", "find");
    gnsstk::NavLibrary navLib;
    gnsstk::NavDataFactoryPtr
       ndfp(std::make_shared<RinexTestFactory>());
@@ -327,6 +330,7 @@ findTest()
    eph = dynamic_cast<gnsstk::GPSLNavEph*>(ndp.get());
    TUASSERT(eph != nullptr);
    TUASSERTE(uint16_t, 64, eph->iode);
+
       // shouldn't have almanac data though
    TUASSERT(!navLib.find(nmida, civ3, ndp, gnsstk::SVHealth::Any,
                          gnsstk::NavValidityType::ValidOnly,
@@ -346,11 +350,48 @@ findTest()
    TURETURN();
 }
 
+unsigned NavLibrary_T ::
+findAllTest()
+{
+   TUDEF("NavLibraryRinex", "findAll");
+
+   gnsstk::NavLibrary navLib;
+   gnsstk::NavDataFactoryPtr ndfp(std::make_shared<RinexTestFactory>());
+   std::string fname = gnsstk::getPathData() + gnsstk::getFileSep() +
+      "arlm2000.15n";
+
+   gnsstk::NavDataPtrList ndp;
+   TUCATCH(navLib.addFactory(ndfp));
+   RinexTestFactory *rndfp = dynamic_cast<RinexTestFactory*>(ndfp.get());
+
+   gnsstk::GPSLNavEph *eph;
+
+   TUASSERT(rndfp->addDataSource(fname));
+
+   gnsstk::NavSatelliteID sat(10, 10, gnsstk::SatelliteSystem::GPS,
+                             gnsstk::CarrierBand::L1, gnsstk::TrackingCode::CA,
+                             gnsstk::NavType::GPSLNAV);
+                             
+   gnsstk::NavMessageID nmide(sat, gnsstk::NavMessageType::Ephemeris);
+      // shouldn't have data at this time
+   gnsstk::CivilTime civ2(2015,7,19,12,35,35.0,gnsstk::TimeSystem::GPS);
+   gnsstk::CivilTime civ3(2015,7,21,12,35,35.0,gnsstk::TimeSystem::GPS);
+
+   gnsstk::TimeRange range (civ2, civ3);
+
+   TUASSERT(navLib.findAll(nmide, range, ndp, true, gnsstk::SVHealth::Any,
+                         gnsstk::NavValidityType::ValidOnly));
+   TUASSERTE(uint16_t, 5, ndp.size());
+
+
+   TURETURN();
+
+}
 
 unsigned NavLibrary_T ::
 setValidityFilterTest()
 {
-   TUDEF("NavLibrary", "setValidityFilter");
+   TUDEF("NavLibraryRinex", "setValidityFilter");
    gnsstk::NavLibrary navLib;
    gnsstk::NavDataFactoryPtr ndfp1(std::make_shared<TestFactory>());
    gnsstk::NavDataFactoryPtr
@@ -379,7 +420,7 @@ setValidityFilterTest()
 unsigned NavLibrary_T ::
 setTypeFilterTest()
 {
-   TUDEF("NavLibrary", "setTypeFilter");
+   TUDEF("NavLibraryRinex", "setTypeFilter");
    gnsstk::NavLibrary navLib;
    gnsstk::NavDataFactoryPtr ndfp1(std::make_shared<TestFactory>());
    gnsstk::NavDataFactoryPtr
@@ -411,7 +452,7 @@ setTypeFilterTest()
 unsigned NavLibrary_T ::
 addTypeFilterTest()
 {
-   TUDEF("NavLibrary", "clearTypeFilter");
+   TUDEF("NavLibraryRinex", "clearTypeFilter");
    gnsstk::NavLibrary navLib;
    gnsstk::NavDataFactoryPtr ndfp1(std::make_shared<TestFactory>());
    gnsstk::NavDataFactoryPtr
@@ -449,7 +490,7 @@ addTypeFilterTest()
 unsigned NavLibrary_T ::
 addFactoryTest()
 {
-   TUDEF("NavLibrary", "addFactory");
+   TUDEF("NavLibraryRinex", "addFactory");
    TestClass navLib;
    gnsstk::NavDataFactoryPtr ndfp1(std::make_shared<TestFactory>());
    gnsstk::NavDataFactoryPtr
@@ -483,7 +524,7 @@ addFactoryTest()
 unsigned NavLibrary_T ::
 getTimeTest()
 {
-   TUDEF("NavLibrary", "getInitialTime");
+   TUDEF("NavLibraryRinex", "getInitialTime");
    gnsstk::NavLibrary navLib;
    gnsstk::NavDataFactoryPtr
       ndfp(std::make_shared<RinexTestFactory>());
@@ -508,7 +549,7 @@ getTimeTest()
 unsigned NavLibrary_T ::
 getAvailableSatsTest()
 {
-   TUDEF("NavLibrary", "getAvailableSats");
+   TUDEF("NavLibraryRinex", "getAvailableSats");
    gnsstk::NavLibrary uut;
    gnsstk::NavDataFactoryPtr
       ndfp(std::make_shared<RinexTestFactory>());
@@ -537,7 +578,7 @@ getAvailableSatsTest()
 unsigned NavLibrary_T ::
 isPresentTest()
 {
-   TUDEF("NavLibrary", "isPresent");
+   TUDEF("NavLibraryRinex", "isPresent");
    gnsstk::NavLibrary uut;
    gnsstk::NavDataFactoryPtr
       ndfp(std::make_shared<RinexTestFactory>());
@@ -567,7 +608,7 @@ isPresentTest()
 unsigned NavLibrary_T ::
 getIonoCorrTest()
 {
-   TUDEF("NavLibrary", "getIonoCorr");
+   TUDEF("NavLibraryRinex", "getIonoCorr");
    gnsstk::NavLibrary uut;
    gnsstk::NavDataFactoryPtr
       ndfp(std::make_shared<RinexTestFactory>());
@@ -603,7 +644,7 @@ getIonoCorrTest()
 unsigned NavLibrary_T ::
 getISCTest()
 {
-   TUDEF("NavLibrary", "getISC");
+   TUDEF("NavLibraryRinex", "getISC");
    gnsstk::NavLibrary uut;
    gnsstk::NavDataFactoryPtr
       ndfp(std::make_shared<RinexTestFactory>());
@@ -640,6 +681,7 @@ int main()
    errorTotal += testClass.getHealthTest();
    errorTotal += testClass.getOffsetTest();
    errorTotal += testClass.findTest();
+   errorTotal += testClass.findAllTest();
    errorTotal += testClass.setValidityFilterTest();
    errorTotal += testClass.setTypeFilterTest();
    errorTotal += testClass.addTypeFilterTest();

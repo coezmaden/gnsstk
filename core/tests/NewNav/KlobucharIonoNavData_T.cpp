@@ -62,10 +62,11 @@ public:
 class KlobucharIonoNavData_T
 {
 public:
-      /// Make sure constructor initializes data members correctly.
+   /// Make sure constructor initializes data members correctly.
    unsigned constructorTest();
    unsigned getIonoCorrTest();
    unsigned rolloverTest();
+   unsigned dumpTest();
 };
 
 
@@ -105,10 +106,10 @@ getIonoCorrTest()
    uut.beta[1]  = -7.30126485E+04;
    uut.beta[2]  = -1.32803702E+04;
    uut.beta[3]  =  3.38181850E+04;
-   TUASSERTFE(13.174577965354167475,
-              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L2));
-   TUASSERTFE(7.9994064218713107906,
-              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L1));
+   TUASSERTFEPS(13.174577965354167475,
+              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L2), 1e-13);
+   TUASSERTFEPS(7.9994064218713107906,
+              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L1), 1e-13);
    TURETURN();
 }
 
@@ -130,8 +131,61 @@ rolloverTest()
    uut.beta[1] = 0.0;
    uut.beta[2] = -196608.0;
    uut.beta[3] = -65536.0;
-   TUASSERTFE(5.4106367748768136039,
-              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L1));
+   TUASSERTFEPS(5.4106367748768136039,
+              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L1), 1e-13);
+   TURETURN();
+}
+
+
+unsigned KlobucharIonoNavData_T ::
+dumpTest()
+{
+   TUDEF("KlobucharIonoNavData", "dump");
+
+   // uut -> unit under test. In this case, a non-abstract KlobucharIonoNavData object
+   TestClass uut;
+   std::stringstream dumpOneLine;
+   std::stringstream dumpFull;
+
+
+   uut.dump(dumpOneLine, gnsstk::DumpDetail::OneLine);
+   std::stringstream sigStream;
+   sigStream << uut.signal;
+   bool timeFound = dumpOneLine.str().find(uut.getDumpTime(gnsstk::DumpDetail::OneLine, uut.timeStamp)) != std::string::npos;
+   TUASSERTE(bool, true, timeFound);
+   TUASSERTE(bool, true, dumpOneLine.str().find(sigStream.str()) != std::string::npos);
+
+   uut.dump(dumpFull, gnsstk::DumpDetail::Full);
+   // check that the contents of getSignalString(), unique from uut.signal, are present in the dump output
+   TUASSERTE(bool, true, dumpFull.str().find(uut.getSignalString()) != std::string::npos);
+   // check that times of interest are in dump output
+   TUASSERTE(bool, true, dumpFull.str().find(uut.getDumpTimeHdr(gnsstk::DumpDetail::Full)) != std::string::npos);
+   // check other relevant tokens which require a stringstream to find()
+   std::stringstream alpha0Stream;
+   alpha0Stream << uut.alpha[0];
+   TUASSERTE(bool, true, dumpFull.str().find(alpha0Stream.str()) != std::string::npos);
+   std::stringstream alpha1Stream;
+   alpha1Stream << uut.alpha[1];
+   TUASSERTE(bool, true, dumpFull.str().find(alpha1Stream.str()) != std::string::npos);
+   std::stringstream alpha2Stream;
+   alpha2Stream << uut.alpha[2];
+   TUASSERTE(bool, true, dumpFull.str().find(alpha2Stream.str()) != std::string::npos);
+   std::stringstream alpha3Stream;
+   alpha3Stream << uut.alpha[3];
+   TUASSERTE(bool, true, dumpFull.str().find(alpha3Stream.str()) != std::string::npos);
+   std::stringstream beta0Stream;
+   beta0Stream << uut.beta[0];
+   TUASSERTE(bool, true, dumpFull.str().find(beta0Stream.str()) != std::string::npos);
+   std::stringstream beta1Stream;
+   beta1Stream << uut.beta[1];
+   TUASSERTE(bool, true, dumpFull.str().find(beta1Stream.str()) != std::string::npos);
+   std::stringstream beta2Stream;
+   beta2Stream << uut.beta[2];
+   TUASSERTE(bool, true, dumpFull.str().find(beta2Stream.str()) != std::string::npos);
+   std::stringstream beta3Stream;
+   beta3Stream << uut.beta[3];
+   TUASSERTE(bool, true, dumpFull.str().find(beta3Stream.str()) != std::string::npos);
+
    TURETURN();
 }
 
@@ -144,6 +198,7 @@ int main()
    errorTotal += testClass.constructorTest();
    errorTotal += testClass.getIonoCorrTest();
    errorTotal += testClass.rolloverTest();
+   errorTotal += testClass.dumpTest();
 
    std::cout << "Total Failures for " << __FILE__ << ": " << errorTotal
              << std::endl;

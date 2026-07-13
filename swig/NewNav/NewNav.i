@@ -49,6 +49,7 @@ from __future__ import absolute_import
 // =============================================================
 
 %include "Ignore.i"
+%rename("$ignore", regextarget=1, fullname=1) "gnsstk::.*DataFactory::clone";
 
 // =============================================================
 //  Section 5: Enumerations
@@ -65,6 +66,7 @@ ENUM_MAPPER(gnsstk::NavMessageType, NavMessageType, "gnsstk")
 %include "NavValidityType.hpp"
 %include "DumpDetail.hpp"
 %include "GPSLNavL2Codes.hpp"
+%include "GPSSVConfig.hpp"
 %include "GalHealthStatus.hpp"
 %include "GalDataValid.hpp"
 %include "GLOFNavPCode.hpp"
@@ -80,6 +82,7 @@ ENUM_MAPPER(gnsstk::NavMessageType, NavMessageType, "gnsstk")
    renameEnums('NavValidityType')
    renameEnums('DumpDetail')
    renameEnums('GPSLNavL2Codes')
+   renameEnums('GPSSVConfig')
    renameEnums('GalHealthStatus')
    renameEnums('GalDataValid')
    renameEnums('GLOFNavPCode')
@@ -146,9 +149,11 @@ ENUM_MAPPER(gnsstk::NavMessageType, NavMessageType, "gnsstk")
 %import "YumaBase.hpp"
 %import "YumaData.hpp"
 %import "Vector.hpp"
+%import "TimeRange.hpp"
 
 /* %include "BDSD1Bits.hpp" */
 %include "NavSignalID.hpp"
+%template() std::set<gnsstk::NavSignalID>;
 %include "NavSatelliteID.hpp"
 %template(NavSatelliteIDSet) std::set<gnsstk::NavSatelliteID>;
 %include "NavMessageType.hpp"
@@ -156,6 +161,12 @@ ENUM_MAPPER(gnsstk::NavMessageType, NavMessageType, "gnsstk")
 %template(NavMessageIDSet) std::set<gnsstk::NavMessageID>;
 %include "DumpDetail.hpp"
 %include "NavData.hpp"
+%include "SystemNavData.hpp"
+%template() std::map<gnsstk::CommonTime, gnsstk::NavDataPtr>;
+%template() std::map<gnsstk::NavSatelliteID, gnsstk::NavMap>;
+%template() std::list<gnsstk::NavDataPtr>;
+%template() std::map<gnsstk::CommonTime, gnsstk::NavDataPtrList>;
+%template() std::map<gnsstk::NavSatelliteID, gnsstk::NavNearMap>;
 %include "OrbitData.hpp"
 %include "NavFit.hpp"
 %include "SVHealth.hpp"
@@ -172,6 +183,8 @@ ENUM_MAPPER(gnsstk::NavMessageType, NavMessageType, "gnsstk")
 %include "KlobucharIonoNavData.hpp"
 %include "BDSD1NavIono.hpp"
 %include "TimeOffsetData.hpp"
+%template() std::pair<gnsstk::TimeSystem, gnsstk::TimeSystem>;
+%template() std::set<gnsstk::TimeCvtKey>;
 %include "StdNavTimeOffset.hpp"
 %include "BDSD1NavTimeOffset.hpp"
 /* %include "BDSD2Bits.hpp" */
@@ -234,6 +247,7 @@ ENUM_MAPPER(gnsstk::NavMessageType, NavMessageType, "gnsstk")
 %include "GPSLNavISC.hpp"
 %include "GPSLNavIono.hpp"
 %include "GPSLNavTimeOffset.hpp"
+%include "GPSNavConfig.hpp"
 %include "GalDataValid.hpp"
 %include "OrbitDataGal.hpp"
 %include "GalHealthStatus.hpp"
@@ -254,13 +268,16 @@ ENUM_MAPPER(gnsstk::NavMessageType, NavMessageType, "gnsstk")
 %include "GalINavIono.hpp"
 %include "GalINavTimeOffset.hpp"
 %include "NavDataFactoryWithStore.hpp"
+%template() std::map<gnsstk::NavSatelliteID, gnsstk::NavDataPtr>;
+%template() std::map<gnsstk::CommonTime, gnsstk::NavDataFactoryWithStore::OffsetMap>;
+%template() std::map<gnsstk::TimeCvtKey, gnsstk::NavDataFactoryWithStore::OffsetEpochMap>;
 %include "NavDataFactoryCallback.hpp"
 %include "NavDataFactoryWithStoreFile.hpp"
 %include "NDFUniqIterator.hpp"
-%template (NDFUniqIterator_NavDataFactoryMap) gnsstk::NDFUniqIterator<gnsstk::NavDataFactoryMap>;
+%template(NDFUniqIterator_NavDataFactoryMap) gnsstk::NDFUniqIterator<gnsstk::NavDataFactoryMap>;
 %include "MultiFormatNavDataFactory.hpp"
 %include "NDFUniqConstIterator.hpp"
-%template (NDFUniqConstIterator_NavDataFactoryMap) gnsstk::NDFUniqConstIterator<gnsstk::NavDataFactoryMap>;
+%template(NDFUniqConstIterator_NavDataFactoryMap) gnsstk::NDFUniqConstIterator<gnsstk::NavDataFactoryMap>;
 %include "NavDataFactoryStoreCallback.hpp"
 %include "NewNavToRinex.hpp"
 %include "OrbitDataSP3.hpp"
@@ -270,6 +287,7 @@ ENUM_MAPPER(gnsstk::NavMessageType, NavMessageType, "gnsstk")
 %feature("flatnested", "");
 %feature("flatnested");
 %include "PNBBDSD2NavDataFactory.hpp"
+%template() std::list<gnsstk::AlmPtr>;
 %feature("flatnested", "");
 %include "PNBGLOCNavDataFactory.hpp"
 %include "PNBGLOFNavDataFactory.hpp"

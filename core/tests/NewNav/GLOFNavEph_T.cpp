@@ -60,6 +60,9 @@ public:
    unsigned getXvtTest();
    unsigned getUserTimeTest();
    unsigned fixFitTest();
+   unsigned dumpTest();
+   unsigned getAccuracyTest();   
+   unsigned isSameDataTest();
 };
 
 
@@ -157,11 +160,11 @@ getXvtTest()
    exp2.v[0] = -490.60674449595484248;
    exp2.v[1] = 458.15034225547964297;
    exp2.v[2] = 3496.5690971077401628;
-   exp2.clkbias = -5.0644406829568993625e-05;
+   exp2.clkbias = -5.0663000192031008146e-05;
    exp2.clkdrift = 1.8189894035500000529e-12;
    exp2.relcorr = 9.8532919671748554905e-09;
       // m_day=2454010, m_msod=900000, GLO
-   uut.Toe = gnsstk::CivilTime(2006, 10, 1, 0, 15, 0, gnsstk::TimeSystem::GLO);
+   uut.Toe = gnsstk::CivilTime(2006, 10, 1, 3, 15, 0, gnsstk::TimeSystem::GLO);
    TUASSERTE(bool, true, uut.getXvt(uut.Toe, xvt));
    TUASSERTE(gnsstk::Xvt::HealthStatus,
              gnsstk::Xvt::HealthStatus::Healthy, xvt.health);
@@ -196,11 +199,11 @@ getUserTimeTest()
 {
    TUDEF("GLOFNavEph", "getUserTime()");
    gnsstk::GLOFNavEph uut;
-   uut.timeStamp = gnsstk::CivilTime(2021,5,19,0,1,13,gnsstk::TimeSystem::GLO);
-   uut.xmit2 = gnsstk::CivilTime(2021,5,19,0,1,19,gnsstk::TimeSystem::GLO);
-   uut.xmit3 = gnsstk::CivilTime(2021,5,19,0,1,15,gnsstk::TimeSystem::GLO);
-   uut.xmit4 = gnsstk::CivilTime(2021,5,19,0,1,17,gnsstk::TimeSystem::GLO);
-   gnsstk::CommonTime exp(gnsstk::CivilTime(2021,5,19,0,1,21,
+   uut.timeStamp = gnsstk::CivilTime(2021,5,19,3,1,13,gnsstk::TimeSystem::GLO);
+   uut.xmit2 = gnsstk::CivilTime(2021,5,19,3,1,19,gnsstk::TimeSystem::GLO);
+   uut.xmit3 = gnsstk::CivilTime(2021,5,19,3,1,15,gnsstk::TimeSystem::GLO);
+   uut.xmit4 = gnsstk::CivilTime(2021,5,19,3,1,17,gnsstk::TimeSystem::GLO);
+   gnsstk::CommonTime exp(gnsstk::CivilTime(2021,5,19,3,1,21,
                                             gnsstk::TimeSystem::GLO));
    TUASSERTE(gnsstk::CommonTime, exp, uut.getUserTime());
    TURETURN();
@@ -214,13 +217,19 @@ fixFitTest()
    gnsstk::GLOFNavEph uut;
       // test each of the possible interval values (0, 30, 45, 60)
    gnsstk::CommonTime
-      bexp(gnsstk::CivilTime(2021,5,19,0,1,13,gnsstk::TimeSystem::GLO)),
-      eexp0(gnsstk::CivilTime(2021,5,19,0,45,30,gnsstk::TimeSystem::GLO)),
-      eexp30(gnsstk::CivilTime(2021,5,19,0,45,30,gnsstk::TimeSystem::GLO)),
-      eexp45(gnsstk::CivilTime(2021,5,19,0,53,0,gnsstk::TimeSystem::GLO)),
-      eexp60(gnsstk::CivilTime(2021,5,19,1,0,30,gnsstk::TimeSystem::GLO));
-   uut.timeStamp = gnsstk::CivilTime(2021,5,19,0,1,13,gnsstk::TimeSystem::GLO);
-   uut.Toe = gnsstk::CivilTime(2021,5,19,0,30,0,gnsstk::TimeSystem::GLO);
+      bexp(gnsstk::CivilTime(2021,5,19,3,0,8,gnsstk::TimeSystem::GLO)),      // Based on getUserTime() data provided below
+      eexp0(gnsstk::CommonTime::END_OF_TIME),
+      eexp30(gnsstk::CivilTime(2021,5,19,3,32,30,gnsstk::TimeSystem::GLO)),
+      eexp45(gnsstk::CivilTime(2021,5,19,3,40,0,gnsstk::TimeSystem::GLO)),
+      eexp60(gnsstk::CivilTime(2021,5,19,3,47,30,gnsstk::TimeSystem::GLO));
+      
+   // Set up for getUserTime()
+   uut.timeStamp = gnsstk::CivilTime(2021,5,19,3,0,0,gnsstk::TimeSystem::GLO);
+   uut.xmit2 = gnsstk::CivilTime(2021,5,19,3,0,2,gnsstk::TimeSystem::GLO);
+   uut.xmit3 = gnsstk::CivilTime(2021,5,19,3,0,4,gnsstk::TimeSystem::GLO);
+   uut.xmit4 = gnsstk::CivilTime(2021,5,19,3,0,6,gnsstk::TimeSystem::GLO);
+
+   uut.Toe = gnsstk::CivilTime(2021,5,19,3,15,0,gnsstk::TimeSystem::GLO);
    uut.interval = 0;
    TUCATCH(uut.fixFit());
    TUASSERTE(gnsstk::CommonTime, bexp, uut.beginFit);
@@ -241,6 +250,117 @@ fixFitTest()
 }
 
 
+unsigned GLOFNavEph_T ::
+dumpTest ()
+{
+   TUDEF("GLOFNavEph", "dump");
+   gnsstk::GLOFNavEph uut;
+ 
+   // set up an stringstream objects to pass into dump()
+   std::stringstream dumpOutputStream;
+
+   // Terse dump
+   uut.dump(dumpOutputStream, gnsstk::DumpDetail::Terse);
+   TUASSERTE(bool, dumpOutputStream.str().length() != 0, true);
+
+   // OneLine dump
+   dumpOutputStream.str(std::string());
+   uut.dump(dumpOutputStream, gnsstk::DumpDetail::OneLine);
+   TUASSERTE(bool, dumpOutputStream.str().length() != 0, true);
+
+   // Brief dump
+   dumpOutputStream.str(std::string());
+   uut.dump(dumpOutputStream, gnsstk::DumpDetail::Brief);
+   TUASSERTE(bool, dumpOutputStream.str().length() != 0, true);
+
+   // Full dump Tests
+   dumpOutputStream.str(std::string());
+   uut.dump(dumpOutputStream, gnsstk::DumpDetail::Full);
+   TUASSERTE(bool, dumpOutputStream.str().length() != 0, true);
+
+   uut.P2=0;
+   uut.P3=0;
+   dumpOutputStream.str(std::string());
+   uut.dump(dumpOutputStream, gnsstk::DumpDetail::Full);
+   TUASSERTE(bool, dumpOutputStream.str().length() != 0, true);
+
+   uut.P2=1;
+   uut.P3=1;
+   dumpOutputStream.str(std::string());
+   uut.dump(dumpOutputStream, gnsstk::DumpDetail::Full);
+   TUASSERTE(bool, dumpOutputStream.str().length() != 0, true);
+
+   TURETURN();
+}
+
+
+unsigned GLOFNavEph_T ::
+getAccuracyTest ()
+{
+   TUDEF("GLOFNavEph", "getAccuracy");
+   gnsstk::GLOFNavEph uut;
+ 
+   // getAccuracy
+   uut.accIndex = 0;
+   TUASSERTE (bool, uut.getAccuracy() == 1.0, true);
+   uut.accIndex = 1;
+   TUASSERTE (bool, uut.getAccuracy() == 2.0, true);
+   uut.accIndex = 2;
+   TUASSERTE (bool, uut.getAccuracy() == 2.5, true);
+   uut.accIndex = 3;
+   TUASSERTE (bool, uut.getAccuracy() == 4.0, true);
+   uut.accIndex = 4;
+   TUASSERTE (bool, uut.getAccuracy() == 5.0, true);
+   uut.accIndex = 5;
+   TUASSERTE (bool, uut.getAccuracy() == 7.0, true);
+   uut.accIndex = 6;
+   TUASSERTE (bool, uut.getAccuracy() == 10.0, true);
+   uut.accIndex = 7;
+   TUASSERTE (bool, uut.getAccuracy() == 12.0, true);
+   uut.accIndex = 8;
+   TUASSERTE (bool, uut.getAccuracy() == 14.0, true);
+   uut.accIndex = 9;
+   TUASSERTE (bool, uut.getAccuracy() == 16.0, true);
+   uut.accIndex = 10;
+   TUASSERTE (bool, uut.getAccuracy() == 32.0, true);
+   uut.accIndex = 11;
+   TUASSERTE (bool, uut.getAccuracy() == 64.0, true);
+   uut.accIndex = 12;
+   TUASSERTE (bool, uut.getAccuracy() == 128.0, true);
+   uut.accIndex = 13;
+   TUASSERTE (bool, uut.getAccuracy() == 256.0, true);
+   uut.accIndex = 14;
+   TUASSERTE (bool, uut.getAccuracy() == 512.0, true);
+   uut.accIndex = -1; // Test unexpected value
+   TUASSERTE (bool, uut.getAccuracy() == 0.0, true);
+
+   TURETURN();
+}
+
+
+unsigned GLOFNavEph_T ::isSameDataTest() {
+  TUDEF("GLOFNavEph", "isSameData");
+
+  // set up GLOFNavEph objects
+  gnsstk::GLOFNavEph uut;
+
+  //Create uut2 with  all NaN values set to 0.0, since NaN == NaN always fails.
+  uut.freqBias = 0.0;   
+  uut.clkBias = 0.0;
+  uut.tauDelta = 0.0;
+  auto uut2 = std::make_shared<gnsstk::GLOFNavEph>(uut);
+
+  // Test that it compares
+  TUASSERTE(bool, true, uut.isSameData(uut2, true));
+
+  // Test that it fails
+  uut.P4 = 1; // change something to assure it fails
+  TUASSERTE(bool, false, uut.isSameData(uut2, true));
+
+  TURETURN();
+}
+
+
 int main()
 {
    GLOFNavEph_T testClass;
@@ -251,6 +371,9 @@ int main()
    errorTotal += testClass.getXvtTest();
    errorTotal += testClass.getUserTimeTest();
    errorTotal += testClass.fixFitTest();
+   errorTotal += testClass.dumpTest();
+   errorTotal += testClass.getAccuracyTest();
+   errorTotal += testClass.isSameDataTest();
 
    std::cout << "Total Failures for " << __FILE__ << ": " << errorTotal
              << std::endl;

@@ -37,11 +37,18 @@
 //
 //==============================================================================
 #include "SEMNavDataFactory.hpp"
-#include "SEMStream.hpp"
-#include "SEMHeader.hpp"
+
+#include <memory>
+
 #include "GPSLNavHealth.hpp"
+#include "GPSNavConfig.hpp"
 #include "GPSWeekSecond.hpp"
 #include "NavDataFactoryStoreCallback.hpp"
+#include "NavMessageType.hpp"
+#include "SatelliteSystem.hpp"
+#include "SEMHeader.hpp"
+#include "SEMStream.hpp"
+#include "DebugTrace.hpp"
 
 using namespace std;
 
@@ -54,6 +61,18 @@ namespace gnsstk
                                           CarrierBand::L1,
                                           TrackingCode::CA,
                                           NavType::GPSLNAV));
+   }
+
+
+   SEMNavDataFactory ::
+   SEMNavDataFactory(const CommonTime& refEpoch) : SEMNavDataFactory()
+   {
+      if (refEpoch != CommonTime::BEGINNING_OF_TIME
+          && refEpoch != CommonTime::END_OF_TIME)
+      {
+         referenceTimeEpoch = refEpoch;
+         referenceTimeEpochValid = true;
+      }
    }
 
 
@@ -73,10 +92,19 @@ namespace gnsstk
       bool rv = true;
       bool processAlm = (procNavTypes.count(NavMessageType::Almanac) > 0);
       bool processHea = (procNavTypes.count(NavMessageType::Health) > 0);
+      bool processSys{procNavTypes.count(NavMessageType::System) > 0};
       try
       {
+         SEMHeader head{};
+         if (!referenceTimeEpochValid) {
+            DEBUGTRACE("Datasource for " + filename + " processed without reference epoch set before by calling "
+                       "gnsstk::NavDataFactory::setRefEpoch(). Using default reference epoch.");
+         }
+         else {
+            long nearReferenceEpochInWeeks = GPSWeekSecond(referenceTimeEpoch).getWeek();
+            head = SEMHeader(nearReferenceEpochInWeeks);
+         }
          SEMStream is(filename.c_str(), ios::in);
-         SEMHeader head;
          SEMData data;
          if (!is)
             return false;
@@ -93,7 +121,7 @@ namespace gnsstk
                else
                   return false; // some other error
             }
-            NavDataPtr alm, health;
+            NavDataPtr alm, health, sys;
             if (processAlm)
             {
                if (!convertToOrbit(data, alm))
@@ -103,6 +131,13 @@ namespace gnsstk
             {
                if (!convertToHealth(data, health))
                   return false;
+            }
+            if (processSys)
+            {
+               if (!convertToSystem(data, sys))
+               {
+                  return false;
+               }
             }
                // check the validity
             bool check = false;
@@ -140,6 +175,16 @@ namespace gnsstk
                         return false;
                   }
                }
+               if (processSys)
+               {
+                  if (sys->validate() == expect)
+                  {
+                     if (!cb.process(sys))
+                     {
+                        return false;
+                     }
+                  }
+               }
             }
             else
             {
@@ -152,6 +197,13 @@ namespace gnsstk
                {
                   if (!cb.process(health))
                      return false;
+               }
+               if (processSys)
+               {
+                  if (!cb.process(sys))
+                  {
+                    return false;
+                  }
                }
             }
          }
@@ -180,7 +232,8 @@ namespace gnsstk
    {
       if (procNavTypes.empty() ||
           (procNavTypes.count(NavMessageType::Almanac) > 0) ||
-          (procNavTypes.count(NavMessageType::Health) > 0))
+          (procNavTypes.count(NavMessageType::Health) > 0) ||
+          (procNavTypes.count(NavMessageType::System) > 0))
       {
          return "SEM";
       }
@@ -230,7 +283,7 @@ namespace gnsstk
       gps->i0 = navIn.i_total;
       gps->w = navIn.w;
       gps->OMEGAdot = navIn.OMEGAdot;
-      gps->idot = navIn.i_offset;
+      gps->idot = 0;
       gps->af0 = navIn.AF0;
       gps->af1 = navIn.AF1;
       gps->af2 = 0.0;
@@ -250,9 +303,32 @@ namespace gnsstk
       fillNavData(navIn, healthOut);
          // this is the only timestamp we have from SEM
       gps->timeStamp = GPSWeekSecond(navIn.week, navIn.Toa);
+      // Set the fit times to toa-70h through toa+74 hours.  This
+      // is an estimate based on IS-GPS-200 Table 20-XIII.
+      gps->timeStamp -= (70 * 3600.0);
+
          // GPSLNavHealth
       gps->svHealth = navIn.SV_health;
       return rv;
+   }
+
+
+   bool SEMNavDataFactory ::
+   convertToSystem(const SEMData &navIn, NavDataPtr &systemOut)
+   {
+     systemOut = std::make_shared<GPSNavConfig>();
+     fillNavData(navIn, systemOut);
+
+     // Dynamically cast to a GPSNavConfig pointer.
+     auto configOut{std::dynamic_pointer_cast<GPSNavConfig>(systemOut)};
+     // The only available timestamp in SEM.
+     configOut->timeStamp = GPSWeekSecond(navIn.week, navIn.Toa);
+     // Antispoof is the MSB of the four valid bits in the config word.
+     configOut->antispoofOn = (navIn.satConfig & 0x8) != 0;
+     // SV config is the 3 LSBs of the four valid bits in the config word.
+     configOut->svConfig = navIn.satConfig & 0x7;
+
+     return true;
    }
 
 
@@ -262,10 +338,18 @@ namespace gnsstk
          // NavData
          // SEM isn't really transmitted, so we set the sats the same
       navOut->signal.sat = SatID(navIn.PRN,SatelliteSystem::GPS);
+      navOut->signal.system = SatelliteSystem::GPS;
       navOut->signal.xmitSat = SatID(navIn.PRN,SatelliteSystem::GPS);
          // we can't obtain these from SEM nav, so just assume L1 C/A
       navOut->signal.obs = ObsID(ObservationType::NavMsg, CarrierBand::L1,
                                  TrackingCode::CA);
       navOut->signal.nav = NavType::GPSLNAV;
+   }
+
+
+   std::unique_ptr<NavDataFactory> SEMNavDataFactory ::
+   clone()
+   {
+      return std::unique_ptr<SEMNavDataFactory>(new SEMNavDataFactory(*this));
    }
 }

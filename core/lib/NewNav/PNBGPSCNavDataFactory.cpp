@@ -288,14 +288,14 @@ namespace gnsstk
           * Must be completed by January, 2137 :-) */
       unsigned wn = ephSF[esiWN]->asUnsignedLong(esbWN,enbWN,escWN);
          // Use the transmit time to get a full week for toe/toc
-         //GPSWeekSecond refTime(eph->xmitTime);
-         //long refWeek = refTime.week;
-         //wn = timeAdjustWeekRollover(wn, refWeek);
+      GPSWeekSecond refTime(eph->xmitTime);
+      long refWeek = refTime.week;
+      wn = timeAdjustWeekRollover(wn, refWeek);
          // Now we can set the Toe/Toc properly.  Note that IS-GPS-200
          // defines the toc and toe to be the same for a consistent
          // set of data, and we've already enforced they're the same
          // above.
-      eph->Toe = eph->Toc = GPSWeekSecond(wn,toe10);
+      eph->Toe = eph->Toc = GPSWeekSecond(wn,toe10).weekRolloverAdj(refTime);
       if (navIn->getsatSys().system == gnsstk::SatelliteSystem::QZSS)
       {
          eph->Toe.setTimeSystem(gnsstk::TimeSystem::QZS);
@@ -371,12 +371,13 @@ namespace gnsstk
       {
          eph->top.setTimeSystem(gnsstk::TimeSystem::QZS);
       }
+      eph->integStat = ephSF[ephM10]->asBool(esbInt);
       eph->xmit11 = ephSF[ephM11]->getTransmitTime();
       eph->xmitClk = ephSF[ephMClk]->getTransmitTime();
-      eph->uraNED0= ephSF[csiURAned0]->asLong(csbURAned0,cnbURAned0,cscURAned0);
-      eph->uraNED1= ephSF[csiURAned1]->asUnsignedLong(csbURAned1,cnbURAned1,
+      eph->uraNED0 = ephSF[csiURAned0]->asLong(csbURAned0,cnbURAned0,cscURAned0);
+      eph->uraNED1 = ephSF[csiURAned1]->asUnsignedLong(csbURAned1,cnbURAned1,
                                                       cscURAned1);
-      eph->uraNED2= ephSF[csiURAned2]->asUnsignedLong(csbURAned2,cnbURAned2,
+      eph->uraNED2 = ephSF[csiURAned2]->asUnsignedLong(csbURAned2,cnbURAned2,
                                                       cscURAned2);
       eph->fixFit();
       // cerr << "add CNAV eph" << endl;
@@ -910,6 +911,12 @@ namespace gnsstk
             s << endl;
          }
       }
+   }
+
+   std::unique_ptr<PNBNavDataFactory> PNBGPSCNavDataFactory ::
+   clone()
+   {
+      return std::unique_ptr<PNBGPSCNavDataFactory>(new PNBGPSCNavDataFactory(*this));
    }
 
 } // namespace gnsstk

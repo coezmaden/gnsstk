@@ -57,6 +57,7 @@ public:
    unsigned validateTest();
    unsigned getUserTimeTest();
    unsigned getIonoCorrTest();
+   unsigned isSameDataTest();
 };
 
 
@@ -129,13 +130,28 @@ getIonoCorrTest()
    uut.beta[1]  = -7.30126485E+04;
    uut.beta[2]  = -1.32803702E+04;
    uut.beta[3]  =  3.38181850E+04;
-   TUASSERTFE(13.174577965354167475,
-              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L2));
-   TUASSERTFE(7.9994064218713107906,
-              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L1));
+   TUASSERTFEPS(13.174577965354167475,
+              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L2), 1e-13);
+   TUASSERTFEPS(7.9994064218713107906,
+              uut.getIonoCorr(when, rx, sv, gnsstk::CarrierBand::L1), 1e-13);
    TURETURN();
 }
 
+
+unsigned GPSCNavIono_T ::
+isSameDataTest()
+{
+   TUDEF("GPSCNavIono", "isSameData");
+
+   gnsstk::GPSCNavIono uut;
+   auto uut2 = std::make_shared<gnsstk::GPSCNavIono>();
+
+   TUASSERTE(bool, true, uut.isSameData(uut2));
+   uut.alpha[1] = 1;
+   TUASSERTE(bool, false, uut.isSameData(uut2));
+
+   TURETURN();
+}
 
 int main()
 {
@@ -146,6 +162,7 @@ int main()
    errorTotal += testClass.validateTest();
    errorTotal += testClass.getUserTimeTest();
    errorTotal += testClass.getIonoCorrTest();
+   errorTotal += testClass.isSameDataTest();
 
    std::cout << "Total Failures for " << __FILE__ << ": " << errorTotal
              << std::endl;

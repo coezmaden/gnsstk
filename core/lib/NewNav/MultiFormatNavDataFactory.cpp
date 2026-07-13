@@ -39,19 +39,43 @@
 #include "MultiFormatNavDataFactory.hpp"
 #include "BasicTimeSystemConverter.hpp"
 #include "NDFUniqConstIterator.hpp"
+#include "NDFUniqIterator.hpp"
+#include "NavDataFactory.hpp"
 
 namespace gnsstk
 {
    MultiFormatNavDataFactory ::
    MultiFormatNavDataFactory()
    {
-         // get our own shared pointer to the factories map.
-      myFactories = factories();
-         // keys for factories are not unique but that doesn't really matter.
-      for (const auto& i : *myFactories)
+      std::shared_ptr<NavDataFactoryMap> registeredFactories = MultiFormatNavDataFactory::factories();
+      cloneToMyFactories(*registeredFactories);
+   }
+
+   MultiFormatNavDataFactory ::
+   MultiFormatNavDataFactory(const CommonTime& refEpoch) : MultiFormatNavDataFactory()
+   {
+      for (auto& fi : NDFUniqIterator<NavDataFactoryMap>(*myFactories))
       {
-         supportedSignals.insert(i.first);
+         fi.second->setRefEpoch(refEpoch);
+      }      
+   }
+
+   MultiFormatNavDataFactory ::
+   MultiFormatNavDataFactory(const MultiFormatNavDataFactory& ndf)
+      : NavDataFactoryWithStoreFile(ndf)
+   {
+      cloneToMyFactories(*ndf.myFactories);
+   }
+
+   MultiFormatNavDataFactory& MultiFormatNavDataFactory ::
+   operator=(const MultiFormatNavDataFactory& ndf)
+   {
+      NavDataFactoryWithStoreFile::operator =(ndf);
+      if (this != &ndf)
+      {
+         cloneToMyFactories(*ndf.myFactories);
       }
+      return *this;
    }
 
 
@@ -82,6 +106,35 @@ namespace gnsstk
          {
             if (fi.second->find(nmid, when, navOut, xmitHealth, valid, order))
                return true;
+            uniques.insert(fi.second.get());
+         }
+      }
+      return false;
+   }
+
+   
+
+   bool MultiFormatNavDataFactory ::
+   findAll(const NavMessageID& nmid, const gnsstk::TimeRange& whenRange,
+      NavDataPtrList& navOut, bool unique, SVHealth xmitHealth, NavValidityType valid)
+   {
+
+      std::set<NavDataFactory*> uniques;
+      for (auto& fi : *myFactories)
+      {
+         if ((fi.first == nmid) && (uniques.count(fi.second.get()) == 0))
+         {
+            try
+            {
+               if (fi.second->findAll(nmid, whenRange, navOut, unique, xmitHealth, valid))
+               {
+                  return true;
+               }
+            }
+            catch (gnsstk::Exception& exc)
+            {
+               GNSSTK_RETHROW(exc);
+            }
             uniques.insert(fi.second.get());
          }
       }
@@ -427,6 +480,10 @@ namespace gnsstk
       {
          return false;
       }
+      if (dynamic_cast<NavDataFactoryWithStoreFile*>(ndfp)->size() != 0)
+      {
+         return false;
+      }
          // Yes, we do add multiple copies of the NavDataFactoryPtr to
          // the map, it's a convenience.
       for (const auto& si : fact->supportedSignals)
@@ -462,7 +519,7 @@ namespace gnsstk
    process(const std::string& filename,
            NavDataFactoryCallback& cb)
    {
-      for (auto& fi : NDFUniqIterator<NavDataFactoryMap>(factories()))
+      for (auto& fi : NDFUniqIterator<NavDataFactoryMap>(myFactories))
       {
          NavDataFactory *ptr = fi.second.get();
          NavDataFactoryWithStoreFile *fact =
@@ -502,6 +559,14 @@ namespace gnsstk
    }
 
 
+   void MultiFormatNavDataFactory ::
+   setRefEpoch(const CommonTime &refEpoch)
+   {
+      throw std::runtime_error("MultiFormatNavDataFactory::setRefEpoch method cannot be called"
+         "Pass 'reference epoch' in the MultiFormatNavDataFactory constructor");
+   }
+
+
    std::string MultiFormatNavDataFactory ::
    getFactoryFormats() const
    {
@@ -524,8 +589,41 @@ namespace gnsstk
    std::shared_ptr<NavDataFactoryMap> MultiFormatNavDataFactory ::
    factories()
    {
+
       static std::shared_ptr<NavDataFactoryMap> rv =
          std::make_shared<NavDataFactoryMap>();
+      
       return rv;
+   }
+
+
+   std::unique_ptr<NavDataFactory> MultiFormatNavDataFactory ::
+   clone()
+   {
+      return std::unique_ptr<MultiFormatNavDataFactory>(new MultiFormatNavDataFactory(*this));
+   }
+
+   void MultiFormatNavDataFactory ::
+   cloneToMyFactories(const NavDataFactoryMap& from)
+   {
+      myFactories->clear();
+      for (auto& fi : NDFUniqConstIterator<NavDataFactoryMap>(from))
+      {
+         NavDataFactoryPtr fact = fi.second->clone();
+            // Yes, we do add multiple copies of the NavDataFactoryPtr to
+            // the map, it's a convenience.
+         for (const auto& si : fact->supportedSignals)
+         {
+            myFactories->insert(NavDataFactoryMap::value_type(si,fact));
+         }
+      }
+
+      // Update the supportedSignals based on the available factories.
+      // Keys for factories are not unique but that doesn't really matter.
+      supportedSignals.clear();
+      for (const auto& i : *myFactories)
+      {
+         supportedSignals.insert(i.first);
+      }
    }
 }

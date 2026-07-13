@@ -53,14 +53,92 @@ namespace gnsstk
 class GPSCNavEph_T
 {
 public:
-      /// Make sure constructor initializes data members correctly.
+   /// Make sure constructor initializes data members correctly.
    unsigned constructorTest();
    unsigned getUserTimeTest();
    unsigned fixFitTest();
    unsigned validateTest();
    unsigned getXvtTest();
+   unsigned testURA();
+   unsigned testURABadIndices();
+   unsigned dumpSVStatusTest();
+   unsigned isSameDataTest();
 };
 
+unsigned GPSCNavEph_T ::
+testURA()
+{
+   TUDEF("GPSCNavEph", "compositeIAURAUpperBound");
+   gnsstk::GPSCNavEph uut;
+   uut.top = gnsstk::CivilTime{2024, 10, 31};
+   uut.uraED = 0;
+   uut.uraNED0 = 0;
+   uut.uraNED1 = 0;
+   uut.uraNED2 = 0;
+
+   // All results were hand computed based on the IS-GPS-200N description of composite IAURA
+
+   // Case: time == top and elevation == 0
+   double result = uut.compositeIAURAUpperBound(gnsstk::CivilTime{2024, 10, 31}, 0);
+   TUASSERTFEPS(3.3941, result, 0.0001);
+   
+   // case: time == top and elevation == 90
+   result = uut.compositeIAURAUpperBound(gnsstk::CivilTime{2024, 10, 31}, 90);
+   TUASSERTFEPS(2.4, result, 0.0001);
+
+   // case: time == top + 93,600 seconds and elevation == 0
+   result = uut.compositeIAURAUpperBound(gnsstk::CivilTime{2024, 11, 1, 2}, 0);
+   TUASSERTFEPS(8.4604, result, 0.0001);
+
+   // case: time == top + 93,700 seconds and elevation == 0
+   result = uut.compositeIAURAUpperBound(gnsstk::CivilTime{2024, 11, 1, 2, 1, 40}, 0);
+   TUASSERTFEPS(8.4663, result, 0.0001);
+
+   // Change the rate and acceleration URA ned parameters
+   uut.uraNED1 = 3;
+   uut.uraNED2 = 7;
+
+   // case: time == top + 93,700 seconds and elevation == 0
+   result = uut.compositeIAURAUpperBound(gnsstk::CivilTime{2024, 11, 1, 2, 1, 40}, 0);
+   TUASSERTFEPS(3.9322, result, 0.0001);
+
+   TURETURN();
+}
+
+
+unsigned GPSCNavEph_T ::
+testURABadIndices()
+{
+   TUDEF("GPSCNavEph", "compositeIAURAUpperBound");
+   gnsstk::GPSCNavEph uut; 
+   uut.top = gnsstk::CivilTime{2024, 10, 31};
+   uut.uraED = 0;
+   uut.uraNED0 = 0;
+   uut.uraNED1 = 0;
+   uut.uraNED2 = 0;
+
+   uut.uraED = -16;
+   double result = uut.compositeIAURAUpperBound(gnsstk::CivilTime{2024, 10, 31}, 0);
+   TUASSERT(std::isnan(result));
+   uut.uraED = 0;
+
+   uut.uraED = 15;
+   result = uut.compositeIAURAUpperBound(gnsstk::CivilTime{2024, 10, 31}, 0);
+   TUASSERT(std::isnan(result));
+   uut.uraED = 0;
+   
+   uut.uraNED0 = -16;
+   result = uut.compositeIAURAUpperBound(gnsstk::CivilTime{2024, 10, 31}, 0);
+   TUASSERT(std::isnan(result));
+   uut.uraNED0 = 0;
+   
+   uut.uraNED0 = 15;
+   result = uut.compositeIAURAUpperBound(gnsstk::CivilTime{2024, 10, 31}, 0);
+   TUASSERT(std::isnan(result));
+   uut.uraNED0 = 0;
+
+   TURETURN();
+}
 
 unsigned GPSCNavEph_T ::
 constructorTest()
@@ -126,16 +204,37 @@ unsigned GPSCNavEph_T ::
 fixFitTest()
 {
    TUDEF("GPSCNavEph", "fixFit");
-   gnsstk::GPSCNavEph uut;
-   gnsstk::GPSWeekSecond beginExpWS2(2059, 597600), endExpWS2(2060, 3600);
-   gnsstk::CommonTime beginExp2(beginExpWS2), endExp2(endExpWS2);
-   uut.Toe = gnsstk::GPSWeekSecond(2059, 603000);
-   uut.xmitTime = gnsstk::GPSWeekSecond(2059,597600);
-   uut.xmit11 = gnsstk::GPSWeekSecond(2059,597612);
-   uut.xmitClk = gnsstk::GPSWeekSecond(2059,597624);
-   TUCATCH(uut.fixFit());
-   TUASSERTE(gnsstk::CommonTime, beginExp2, uut.beginFit);
-   TUASSERTE(gnsstk::CommonTime, endExp2, uut.endFit);
+   {
+      gnsstk::GPSCNavEph uut;
+      gnsstk::GPSWeekSecond beginExpWS2(2059, 597600), endExpWS2(2060, 3600);
+      gnsstk::CommonTime beginExp2(beginExpWS2), endExp2(endExpWS2);
+      uut.Toe = gnsstk::GPSWeekSecond(2059, 603000);
+      uut.xmitTime = gnsstk::GPSWeekSecond(2059,597600);
+      uut.xmit11 = gnsstk::GPSWeekSecond(2059,597612);
+      uut.xmitClk = gnsstk::GPSWeekSecond(2059,597624);
+      TUCATCH(uut.fixFit());
+      TUASSERTE(gnsstk::CommonTime, beginExp2, uut.beginFit);
+      TUASSERTE(gnsstk::CommonTime, endExp2, uut.endFit);
+   }
+
+   // GPS III upload behavior -- the curve midpoint is not aligned to an hour boundary.
+   // The curve midpoint will be aligned to a 5 minute boundary and the Toe will be 
+   // negatively offset from that 5 minute boundary.
+   {
+      gnsstk::CommonTime beginExp{gnsstk::GPSWeekSecond(2121, 603354)};
+      gnsstk::CommonTime endExp{gnsstk::GPSWeekSecond(2122, 9600)};
+      gnsstk::GPSCNavEph uut;
+      uut.signal.system = gnsstk::SatelliteSystem::GPS;
+      // On first upload, midpoint is determined to be 1.5 hours out
+      // from transmit aligned to 5 minutes. 
+      uut.Toe = gnsstk::GPSWeekSecond(2122, 3900);
+      uut.xmitTime = gnsstk::GPSWeekSecond(2121,603360);
+      uut.xmit11 = gnsstk::GPSWeekSecond(2121,603354);
+      uut.xmitClk = gnsstk::GPSWeekSecond(2121,603366);
+      TUCATCH(uut.fixFit());
+      TUASSERTE(gnsstk::CommonTime, beginExp, uut.beginFit);
+      TUASSERTE(gnsstk::CommonTime, endExp, uut.endFit);
+   }
       //uut.dump(std::cerr, gnsstk::OrbitDataKepler::Detail::Full);
    TURETURN();
 }
@@ -179,6 +278,34 @@ getXvtTest()
    TURETURN();
 }
 
+unsigned GPSCNavEph_T ::
+dumpSVStatusTest()
+{
+   TUDEF("GPSCNavEph", "dump");
+   gnsstk::GPSCNavEph uut;
+   std::stringstream dumpOut;
+
+   uut.dumpSVStatus(dumpOut);
+   TUASSERTE(bool, false, dumpOut.str().empty());
+
+   TURETURN();
+}
+
+
+unsigned GPSCNavEph_T ::
+isSameDataTest()
+{
+   TUDEF("GPSCNavEph", "isSameData");
+   gnsstk::GPSCNavEph uut;
+   auto uut2 = std::make_shared<gnsstk::GPSCNavEph>();
+
+   TUASSERTE(bool, true, uut.isSameData(uut2, true));
+   uut.healthL1 = false;
+   TUASSERTE(bool, false, uut.isSameData(uut2, true));
+
+   TURETURN();
+}
+
 
 int main()
 {
@@ -190,6 +317,10 @@ int main()
    errorTotal += testClass.fixFitTest();
    errorTotal += testClass.validateTest();
    errorTotal += testClass.getXvtTest();
+   errorTotal += testClass.testURA();
+   errorTotal += testClass.testURABadIndices();
+   errorTotal += testClass.dumpSVStatusTest();
+   errorTotal += testClass.isSameDataTest();
 
    std::cout << "Total Failures for " << __FILE__ << ": " << errorTotal
              << std::endl;

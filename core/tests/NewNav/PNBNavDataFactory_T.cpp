@@ -59,6 +59,7 @@ private:
       override
    { return false; }
    void resetState() override {}
+   std::unique_ptr<gnsstk::PNBNavDataFactory> clone() { return std::unique_ptr<TestClass>(new TestClass(*this)); }
 };
 
 class PNBNavDataFactory_T
@@ -82,6 +83,7 @@ constructorTest()
    TUASSERTE(bool, true, uut.processHea);
    TUASSERTE(bool, true, uut.processTim);
    TUASSERTE(bool, true, uut.processIono);
+   TUASSERTE(bool, false, uut.processSys);
    TURETURN();
 }
 
@@ -112,12 +114,14 @@ setTypeFilterTest()
    TUASSERTE(bool, true,  uut.processHea);
    TUASSERTE(bool, true,  uut.processTim);
    TUASSERTE(bool, true,  uut.processIono);
+   TUASSERTE(bool, false, uut.processSys);
    uut.setTypeFilter({gnsstk::NavMessageType::Almanac});
    TUASSERTE(bool, false, uut.processEph);
    TUASSERTE(bool, true,  uut.processAlm);
    TUASSERTE(bool, false, uut.processHea);
    TUASSERTE(bool, false, uut.processTim);
    TUASSERTE(bool, false, uut.processIono);
+   TUASSERTE(bool, false, uut.processSys);
    uut.setTypeFilter({gnsstk::NavMessageType::Ephemeris,
                       gnsstk::NavMessageType::TimeOffset});
    TUASSERTE(bool, true,  uut.processEph);
@@ -125,6 +129,7 @@ setTypeFilterTest()
    TUASSERTE(bool, false, uut.processHea);
    TUASSERTE(bool, true,  uut.processTim);
    TUASSERTE(bool, false, uut.processIono);
+   TUASSERTE(bool, false, uut.processSys);
    uut.setTypeFilter({gnsstk::NavMessageType::Health,
                       gnsstk::NavMessageType::Clock});
    TUASSERTE(bool, false, uut.processEph);
@@ -132,18 +137,28 @@ setTypeFilterTest()
    TUASSERTE(bool, true,  uut.processHea);
    TUASSERTE(bool, false, uut.processTim);
    TUASSERTE(bool, false, uut.processIono);
+   TUASSERTE(bool, false, uut.processSys);
    uut.setTypeFilter({gnsstk::NavMessageType::Clock});
    TUASSERTE(bool, false, uut.processEph);
    TUASSERTE(bool, false, uut.processAlm);
    TUASSERTE(bool, false, uut.processHea);
    TUASSERTE(bool, false, uut.processTim);
    TUASSERTE(bool, false, uut.processIono);
+   TUASSERTE(bool, false, uut.processSys);
    uut.setTypeFilter({gnsstk::NavMessageType::Iono});
    TUASSERTE(bool, false, uut.processEph);
    TUASSERTE(bool, false, uut.processAlm);
    TUASSERTE(bool, false, uut.processHea);
    TUASSERTE(bool, false, uut.processTim);
    TUASSERTE(bool, true,  uut.processIono);
+   TUASSERTE(bool, false, uut.processSys);
+   uut.setTypeFilter({gnsstk::NavMessageType::System});
+   TUASSERTE(bool, false, uut.processEph);
+   TUASSERTE(bool, false, uut.processAlm);
+   TUASSERTE(bool, false, uut.processHea);
+   TUASSERTE(bool, false, uut.processTim);
+   TUASSERTE(bool, false, uut.processIono);
+   TUASSERTE(bool, true, uut.processSys);
    TURETURN();
 }
 

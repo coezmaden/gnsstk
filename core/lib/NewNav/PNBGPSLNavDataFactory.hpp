@@ -117,12 +117,12 @@ namespace gnsstk
           * @return true if successful (navOut may still be empty). */
       bool processSVID51(const PackedNavBitsPtr& navIn, NavDataPtrList& navOut);
 
-         /** Process SV/page ID 63.  This includes health data for
-          * PRNs 25-32.
-          * @param[in] navIn The PackedNavBits data containing the subframe.
-          * @param[out] navOut The GPSLNavHealth objects generated from
-          *   navIn.
-          * @return true if successful. */
+      /** Process SV/page ID 63.  This includes health data for
+       * PRNs 25-32 and SV config for PRNs 1-32.
+       * @param[in] navIn The PackedNavBits data containing the subframe.
+       * @param[out] navOut The GPSLNavHealth and/or GPSNavConfig objects
+       *   generated from navIn.
+       * @return true if successful. */
       bool processSVID63(const PackedNavBitsPtr& navIn, NavDataPtrList& navOut);
 
          /** Process SV/page ID 56.  This includes GPS-UTC time offset
@@ -132,6 +132,9 @@ namespace gnsstk
           *   navIn.
           * @return true if successful. */
       bool processSVID56(const PackedNavBitsPtr& navIn, NavDataPtrList& navOut);
+
+
+      bool processNMCT(unsigned sfid, const PackedNavBitsPtr& navIn, NavDataPtrList& navOut);
 
          /** Reset the state of the data accumulator.  Most
           * PNBNavDataFactory child classes will maintain some state
@@ -145,6 +148,9 @@ namespace gnsstk
           * @param[in,out] s The stream to write the debug output to. */
       void dumpState(std::ostream& s) const;
 
+         /// @copydoc PNBNavDataFactory::clone()
+      std::unique_ptr<PNBNavDataFactory> clone() override;
+
    protected:
          /** Map GPS transmit PRN to fully qualified week/second
           * (WNa/toa).  This is set by SV/page ID 51. */
@@ -157,6 +163,8 @@ namespace gnsstk
          /** Map GPS PRN to a vector of PackedNavBits for accumulating
           * ephemeris data, where index 0 is subframe 1 and so on. */
       std::map<NavSatelliteID, std::vector<PackedNavBitsPtr> > ephAcc;
+
+      std::map<NavSatelliteID, std::vector<PackedNavBitsPtr> > nmctAcc;
    };
 
       //@}

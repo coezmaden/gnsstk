@@ -231,7 +231,7 @@ namespace gnsstk
       gps->i0 = navIn.i_total;
       gps->w = navIn.w;
       gps->OMEGAdot = navIn.OMEGAdot;
-      gps->idot = navIn.i_offset;
+      gps->idot = 0;
       gps->af0 = navIn.AF0;
       gps->af1 = navIn.AF1;
       gps->af2 = 0.0;
@@ -270,5 +270,12 @@ namespace gnsstk
       navOut->signal.obs = ObsID(ObservationType::NavMsg, CarrierBand::L1,
                                  TrackingCode::CA);
       navOut->signal.nav = NavType::GPSLNAV;
+   }
+
+
+   std::unique_ptr<NavDataFactory> YumaNavDataFactory ::
+   clone()
+   {
+      return std::unique_ptr<YumaNavDataFactory>(new YumaNavDataFactory(*this));
    }
 }

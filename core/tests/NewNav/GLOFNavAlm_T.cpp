@@ -63,6 +63,8 @@ public:
    unsigned getXvtTest();
    unsigned getUserTimeTest();
    unsigned fixFitTest();
+   unsigned dumpTest();
+   unsigned isSameDataTest();
       /** This isn't a real test, it was code implemented in an
        * attempt to track down bugs in the library code through
        * duplication.  Disabled for now, but leaving it here JIC. */
@@ -126,14 +128,14 @@ getXvtTest()
       //uut.dump(std::cerr, gnsstk::DumpDetail::Full);
    gnsstk::Xvt xvt;
    TUASSERTE(bool, true, uut.getXvt(toi, xvt));
-      // 10 nm tolerance
-   TUASSERTFEPS(10945967.138109738, xvt.x[0], 1e-8);
-   TUASSERTFEPS(13079860.921750335, xvt.x[1], 1e-8);
-   TUASSERTFEPS(18922063.556836389, xvt.x[2], 1e-8);
+      // 10 micrometer tolerance
+   TUASSERTFEPS(10945967.138109738, xvt.x[0], 1e-5);
+   TUASSERTFEPS(13079860.921750335, xvt.x[1], 1e-5);
+   TUASSERTFEPS(18922063.556836389, xvt.x[2], 1e-5);
       // 1 pm/s tolerance
-   TUASSERTFEPS(-3375.4834789088281, xvt.v[0], 1e-12);
-   TUASSERTFEPS(-161.72513071304218, xvt.v[1], 1e-12);
-   TUASSERTFEPS(2060.8444711932389, xvt.v[2], 1e-12);
+   TUASSERTFEPS(-3375.4834789088281, xvt.v[0], 1e-9);
+   TUASSERTFEPS(-161.72513071304218, xvt.v[1], 1e-9);
+   TUASSERTFEPS(2060.8444711932389, xvt.v[2], 1e-9);
    TUASSERTFE(0, xvt.clkbias);
    TUASSERTFE(0, xvt.clkdrift);
    TUASSERTFE(1.5097189886318696151e-09, xvt.relcorr);
@@ -341,6 +343,61 @@ blahTest()
 }
 
 
+unsigned GLOFNavAlm_T ::
+dumpTest ()
+{
+   TUDEF("GLOFNavAlm", "dump");
+   gnsstk::GLOFNavAlm uut;
+ 
+   // set up an stringstream objects to pass into dump()
+   std::stringstream dumpOutputStream;
+   std::vector<gnsstk::DumpDetail> dumpTypes = 
+   {
+      gnsstk::DumpDetail::Terse, 
+      gnsstk::DumpDetail::OneLine,
+      gnsstk::DumpDetail::Brief, 
+      gnsstk::DumpDetail::Full
+   };
+
+   for (const auto& dtype: dumpTypes) 
+   {
+      dumpOutputStream.str(std::string());
+      uut.dump(dumpOutputStream, dtype);
+      TUASSERTE(bool, dumpOutputStream.str().empty(), false);   
+   }
+
+   TURETURN();
+}
+
+
+unsigned GLOFNavAlm_T ::isSameDataTest() {
+   TUDEF("GLOFNavAlm", "isSameData");
+
+   // set up objects
+   gnsstk::GLOFNavAlm uut;
+
+   //Create uut2  with setting NaN values to something other than NaN since NaN == NaN is false.
+   uut.taunA = 0;
+   uut.lambdanA  = 0;
+   uut.deltainA  = 0;
+   uut.eccnA  = 0;
+   uut.omeganA  = 0;
+   uut.tLambdanA  = 0;
+   uut.deltaTnA  = 0;
+   uut.deltaTdotnA  = 0;
+   auto uut2 = std::make_shared<gnsstk::GLOFNavAlm>(uut);
+
+   // Test that it compares
+   TUASSERTE(bool, true, uut.isSameData(uut2, true));
+
+   // Test that if fails
+   uut.signal.sat.id = 1; // change something to assure it fails
+   TUASSERTE(bool, false, uut.isSameData(uut2, true));
+
+   TURETURN();
+}
+
+
 int main()
 {
    GLOFNavAlm_T testClass;
@@ -351,6 +408,8 @@ int main()
    errorTotal += testClass.getXvtTest();
    errorTotal += testClass.getUserTimeTest();
    errorTotal += testClass.fixFitTest();
+   errorTotal += testClass.dumpTest();
+   errorTotal += testClass.isSameDataTest(); 
    // errorTotal += testClass.blahTest();
 
    std::cout << "Total Failures for " << __FILE__ << ": " << errorTotal

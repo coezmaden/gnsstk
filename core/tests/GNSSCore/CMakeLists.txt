@@ -163,6 +163,10 @@ add_executable(SatMetaDataStore_T SatMetaDataStore_T.cpp)
 target_link_libraries(SatMetaDataStore_T gnsstk)
 add_test(NAME GNSSCore_SatMetaDataStore COMMAND $<TARGET_FILE:SatMetaDataStore_T>)
 
+add_executable(SatelliteSystem_T SatelliteSystem_T.cpp)
+target_link_libraries(SatelliteSystem_T gnsstk)
+add_test(NAME GNSSCore_SatelliteSystem COMMAND $<TARGET_FILE:SatelliteSystem_T>)
+
 add_executable(RinexObsID_T RinexObsID_T.cpp)
 target_link_libraries(RinexObsID_T gnsstk)
 add_test(NAME GNSSCore_RinexObsID COMMAND $<TARGET_FILE:RinexObsID_T>)
@@ -269,6 +273,11 @@ set_property(TEST GNSSCore_CorrectionResults PROPERTY LABELS Solutions)
 add_executable(RawRange_T RawRange_T.cpp)
 target_link_libraries(RawRange_T gnsstk)
 add_test(NAME GNSSCore_RawRange COMMAND $<TARGET_FILE:RawRange_T>)
+
+add_executable(GNSSconstants_T GNSSconstants_T.cpp)
+target_link_libraries(GNSSconstants_T gnsstk)
+add_test(NAME GNSSCore_constants COMMAND $<TARGET_FILE:GNSSconstants_T>)
+
 
 ###############################################################################
 ###############################################################################

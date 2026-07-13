@@ -89,6 +89,9 @@ namespace gnsstk
           * position/velocity tables and returning an OrbitDataSP3
           * that is already interpolated to get the appropriate values
           * at the desired time.
+          * @warning Do not call this method with navOut being an
+          *   already valid object.  You will not get the results you
+          *   want.
           * @param[in] nmid Specify the message type, satellite and
           *   codes to match.
           * @param[in] when The time of interest to search for data.
@@ -129,11 +132,14 @@ namespace gnsstk
           * @param[in] isC If true, the SP3Data comes from an SP3c file.
           * @param[out] navOut The OrbitDataSP3 object to be added to the
           *   factory data map.
+          * @param[in] initVal The value to initialize all
+          *   OrbitDataSP3 members with.
           * @return true if the conversion is valid, false if the
           *   input data is unsupported.
           */
       static bool convertToOrbit(const SP3Header& head, const SP3Data& navIn,
-                                 bool isC, NavDataPtr& navOut);
+                                 bool isC, NavDataPtr& navOut,
+                                 double initVal);
 
          /** Convert SP3 nav data to a OrbitDataSP3 object with SV
           * clock offset data.
@@ -142,11 +148,14 @@ namespace gnsstk
           * @param[in] isC If true, the SP3Data comes from an SP3c file.
           * @param[out] clkOut The OrbitDataSP3 object to be added to the
           *   factory data map.
+          * @param[in] initVal The value to initialize all
+          *   OrbitDataSP3 members with.
           * @return true if the conversion is valid, false if the
           *   input data is unsupported.
           */
       static bool convertToClock(const SP3Header& head, const SP3Data& navIn,
-                                 bool isC, NavDataPtr& clkOut);
+                                 bool isC, NavDataPtr& clkOut,
+                                 double initVal);
 
          /** Because SP3 files don't identify signals (the data is
           * computed, not broadcast). we use this function to
@@ -320,6 +329,25 @@ namespace gnsstk
           * given stream. */
       void dumpConfig(std::ostream& s) const;
 
+         /** This value is used to initialize OrbitDataSP3 parameters
+          * on construction.  Defaults to 0.
+          * @see OrbitDataSP3(double). */
+      double initOrbitDataVal;
+
+         /// @copydoc NavDataFactory::clone() 
+      std::unique_ptr<NavDataFactory> clone() override;
+
+   protected:
+
+         /** Set the obs and nav identification for the given NavMessageID
+          * object, using a satellite system only.  This is really
+          * just a "best guess" for a given system.
+          * @param[in] sat The satellite identifier (incl GNSS) for the data.
+          * @param[in,out] signal The NavMessageID object to update.
+          * @return true if successful, false if the system is unsupported. */
+      static bool setSignal(const SatID& sat, NavMessageID& signal);
+
+
    private:
          /** Load a RINEX clock file into internal store.
           * @post If RINEX clock data is successfully loaded, the
@@ -415,14 +443,6 @@ namespace gnsstk
                        NavNearMessageMap& navNearMap,
                        OffsetCvtMap& ofsMap) override
       { return false; }
-
-         /** Set the obs and nav identification for the given NavMessageID
-          * object, using a satellite system only.  This is really
-          * just a "best guess" for a given system.
-          * @param[in] sat The satellite identifier (incl GNSS) for the data.
-          * @param[in,out] signal The NavMessageID object to update.
-          * @return true if successful, false if the system is unsupported. */
-      static bool setSignal(const SatID& sat, NavMessageID& signal);
 
          /** Compute the nominal timestep of the data for the given signal.
           * @return 0 if the signal is not found, otherwise return the

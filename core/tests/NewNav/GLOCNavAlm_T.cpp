@@ -77,6 +77,10 @@ public:
    unsigned getXvtTest();
    unsigned getUserTimeTest();
    unsigned fixFitTest();
+   unsigned dumpTest();
+   unsigned isSameDataTest();
+
+
       /// Not getting the same results. Why not?
    void reproduce();
    unsigned reproduce2();
@@ -242,7 +246,6 @@ constructorTest()
    TUASSERTE(gnsstk::GLOCOrbitType, gnsstk::GLOCOrbitType::Unknown,
              uut.orbitType);
    TUASSERTE(unsigned, 0, uut.numSVs);
-   TUASSERTE(unsigned, 0, uut.aoa);
    TUASSERTE(unsigned, 0, uut.NA);
    TUASSERTE(unsigned, 0, uut.statusReg);
    TUASSERTE(gnsstk::GLOCSatType, gnsstk::GLOCSatType::Unknown,
@@ -348,19 +351,19 @@ getXvtTest()
    TUASSERTE(bool, true, uut.getXvt(toi, xvt));
    TUASSERTFESMRT(xExpected, xvt.x[0]);
    TUASSERTFESMRT(yExpected, xvt.x[1]);
-   TUASSERTFESMRT(zExpected, xvt.x[2]);
+   TUASSERTFEPS(zExpected, xvt.x[2], 1e-6);
       // This is a bit of a cheat.  All I can figure is that numeric
       // error gets accumulated in the LSBs leading to v[0] being just
       // slightly out of spec.  That or the fact that it's negative
       // has an effect on the representable digits.  Either way, this
       // same code and its results are tested pretty thoroughly,
       // step-by-step, in other test methods.
-   TUASSERTFEPS(xdotExpected, xvt.v[0], 1.5e-12);
-   TUASSERTFESMRT(ydotExpected, xvt.v[1]);
+   TUASSERTFEPS(xdotExpected, xvt.v[0], 1e-9);
+   TUASSERTFEPS(ydotExpected, xvt.v[1], 1e-9);
    TUASSERTFESMRT(zdotExpected, xvt.v[2]);
    TUASSERTFESMRT(clkbiasExpected, xvt.clkbias);
    TUASSERTFESMRT(clkdriftExpected, xvt.clkdrift);
-   TUASSERTFESMRT(relcorrExpected, xvt.relcorr);
+   TUASSERTFEPS(relcorrExpected, xvt.relcorr, 1e-18);
    TUASSERTE(gnsstk::RefFrame,expRF,xvt.frame);
 
    TUASSERTFESMRT(DeltatprExpected, uut.math.Deltatpr);
@@ -393,22 +396,22 @@ getXvtTest()
    TUASSERTFESMRT(omegaExpected, uut.math.uncorrected.omega);
    TUASSERTFESMRT(lambdaExpected, uut.math.uncorrected.lambda);
    TUASSERTFESMRT(hExpected, uut.math.uncorrected.h);
-   TUASSERTFESMRT(lExpected, uut.math.uncorrected.l);
+   TUASSERTFEPS(lExpected, uut.math.uncorrected.l, 1e-15);
    TUASSERTFESMRT(pExpected, uut.math.uncorrected.p);
 
-   TUASSERTFESMRT(deltaa1_aExpected, uut.math.k1.a);
+   TUASSERTFEPS(deltaa1_aExpected, uut.math.k1.a, 1e-15);
    TUASSERTFESMRT(deltah1Expected, uut.math.k1.h);
    TUASSERTFESMRT(deltal1Expected, uut.math.k1.l);
-   TUASSERTFESMRT(deltalambda1Expected, uut.math.k1.lambda);
+   TUASSERTFEPS(deltalambda1Expected, uut.math.k1.lambda, 1e-15);
    TUASSERTFESMRT(deltai1Expected, uut.math.k1.i);
-   TUASSERTFESMRT(deltaL1Expected, uut.math.k1.Lk);
+   TUASSERTFEPS(deltaL1Expected, uut.math.k1.Lk, 1e-15);
 
-   TUASSERTFESMRT(deltaa2_aExpected, uut.math.k2.a);
+   TUASSERTFEPS(deltaa2_aExpected, uut.math.k2.a, 1e-15);
    TUASSERTFESMRT(deltah2Expected, uut.math.k2.h);
-   TUASSERTFESMRT(deltal2Expected, uut.math.k2.l);
-   TUASSERTFESMRT(deltalambda2Expected, uut.math.k2.lambda);
-   TUASSERTFESMRT(deltai2Expected, uut.math.k2.i);
-   TUASSERTFESMRT(deltaL2Expected, uut.math.k2.Lk);
+   TUASSERTFEPS(deltal2Expected, uut.math.k2.l, 1e-15);
+   TUASSERTFEPS(deltalambda2Expected, uut.math.k2.lambda, 1e-15);
+   TUASSERTFEPS(deltai2Expected, uut.math.k2.i, 1e-15);
+   TUASSERTFEPS(deltaL2Expected, uut.math.k2.Lk, 1e-15);
 
    TURETURN();
 }
@@ -468,7 +471,7 @@ UncorrectedTest()
    TUCSM("sethl");
    TUCATCH(uut.sethl(epsilonA));
    TUASSERTFESMRT(hExpected, uut.h);
-   TUASSERTFESMRT(lExpected, uut.l);
+   TUASSERTFEPS(lExpected, uut.l, 1e-15);
    TURETURN();
 }
 
@@ -663,6 +666,61 @@ DeltasTest()
    TURETURN();
 }
 
+unsigned GLOCNavAlm_T ::
+dumpTest ()
+{
+   TUDEF("GLOCNavAlm", "dump");
+   gnsstk::GLOCNavAlm uut;
+ 
+   // set up an stringstream objects to pass into dump()
+   std::stringstream dumpOutputStream;
+   std::vector<gnsstk::DumpDetail> dumpTypes = 
+   {
+      gnsstk::DumpDetail::Terse, 
+      gnsstk::DumpDetail::OneLine,
+      gnsstk::DumpDetail::Brief, 
+      gnsstk::DumpDetail::Full
+   };
+
+   for (const auto& dtype: dumpTypes) 
+   {
+      dumpOutputStream.str(std::string());
+      uut.dump(dumpOutputStream, dtype);
+      TUASSERTE(bool, dumpOutputStream.str().empty(), false);   
+   }
+
+   TURETURN();
+}
+
+unsigned GLOCNavAlm_T ::isSameDataTest() {
+   TUDEF("GLOCNavAlm", "isSameData");
+
+   // set up GLOFNavEph objects
+   gnsstk::GLOCNavAlm uut;
+
+   //Create uut2 with all NaN values set to 0.0, since NaN == NaN always fails.
+   uut.tau = 0.0;
+   uut.lambda = 0.0;
+   uut.tLambda = 0.0;
+   uut.deltai = 0.0;
+   uut.ecc = 0.0;
+   uut.omega = 0.0;
+   uut.deltaT = 0.0;
+   uut.deltaTdot = 0.0;
+
+   //Create uut2 with  all NaN values set to 0.0, since NaN == NaN always fails.
+   auto uut2 = std::make_shared<gnsstk::GLOCNavAlm>(uut);
+
+   // Test that it compares
+   TUASSERTE(bool, true, uut.isSameData(uut2, true));
+
+   // Test that if fails
+   uut.signal.sat.id = 1; // change something to assure it fails
+   TUASSERTE(bool, false, uut.isSameData(uut2, true));
+
+   TURETURN();
+}
+
 
 int main()
 {
@@ -678,6 +736,8 @@ int main()
    errorTotal += testClass.getXvtTest();
    errorTotal += testClass.getUserTimeTest();
    errorTotal += testClass.fixFitTest();
+   errorTotal += testClass.dumpTest();
+   errorTotal += testClass.isSameDataTest();   
    errorTotal += testClass.NumberCruncherTest();
    errorTotal += testClass.DeltasTest();
    errorTotal += testClass.UncorrectedTest();

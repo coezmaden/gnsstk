@@ -1,38 +1,44 @@
 [CODEOWNERS]
-CODEOWNERS @kuck @rain
+CODEOWNERS @kuck @dbarber
 
 [Documentation]
-docs/ @johnk @rain
 ref/papers/ @renfrob @rain @kuck
 ref/usersguide/ @johnk @renfrob @rain
 
+# [Stakeholder Review]
+# Ensure stakeholder review for the design documents, which should
+# live in the sgl-tks/Toolkit-Docs repo. See ./STAKEHOLDERS for
+# first POC in finding who should review your design document. See
+# the toolkits_engagement_rules to determine if they need to.
+
+
 [Subject Matter Experts]
-# Default Owners
+# Default Owners. They, at least, should review your design doc.
 * @sgl-tks
 
 # Core lib
 core/lib/ @johnk
 core/lib/AppFrame/ @johnk @anthony
-core/lib/CommandLine/CommandLine.cpp @anthony @btolman @johnk
-core/lib/CommandLine/CommandLine.hpp @anthony @btolman @johnk
+core/lib/CommandLine/CommandLine.cpp @anthony @magliocca @johnk
+core/lib/CommandLine/CommandLine.hpp @anthony @magliocca @johnk
 core/lib/CommandLine/ @johnk @anthony
 core/lib/FileDirProc/ @johnk @anthony
-core/lib/FileHandling/ @anthony @johnk
-core/lib/Geomatics/ @btolman @johnk
+core/lib/FileHandling/ @anthony @bbauer
+core/lib/Geomatics/ @magliocca @johnk @butcher
 core/lib/GNSSCore/ @anthony @johnk @jmedeiros
 core/lib/GNSSEph/ @johnk @anthony @renfrob
-core/lib/Math/ @anthony @btolman
+core/lib/Math/ @anthony @magliocca @malik
 core/lib/NavFilter/ @johnk @anthony @renfrob
-core/lib/NewNav/ @johnk @jmedeiros
+core/lib/NewNav/ @malik @jmedeiros @ddavies @bmechler
 core/lib/ORD/ @malik @johnk @rcathriner
-core/lib/PosSol/ @btolman @renfrob
-core/lib/RefTime/ @btolman @renfrob
+core/lib/PosSol/ @magliocca @renfrob @malik
+core/lib/RefTime/ @magliocca @renfrob
 core/lib/TestFramework/ @anthony @johnk
 core/lib/TimeHandling/ @anthony @johnk @renfrob
 core/lib/Utilities/ @johnk @anthony
 
 # Core tests
-core/tests/ @johnk @anthony @renfrob
+core/tests/ @code-reviewers/cpp
 
 # Ext -- unsupported & unmaintained, not part of the API
 ext/ @johnk @dbarber
@@ -40,7 +46,7 @@ ext/ @johnk @dbarber
 # Other
 data/ @dbarber @kuck
 deprecated/ @dbarber @kuck
-examples/ @johnk @btolman @renfrob
+examples/ @johnk @magliocca @renfrob
 
 [CPP Reviewers]
 *.cpp   @code-reviewers/cpp

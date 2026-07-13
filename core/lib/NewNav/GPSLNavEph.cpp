@@ -40,6 +40,7 @@
 #include "GPSWeekSecond.hpp"
 #include "TimeString.hpp"
 #include "GPS_URA.hpp"
+#include "TimeConstants.hpp"
 
 using namespace std;
 
@@ -91,47 +92,57 @@ namespace gnsstk
    void GPSLNavEph ::
    fixFit()
    {
-      GPSWeekSecond xws(xmitTime), toeWS(Toe);
-      int xmitWeek = xws.week;
-      long xmitSOW = (long) xws.sow;
-      bool isNominalToe = (long)toeWS.sow % 7200 == 0;
-      double fitSeconds = 3600.0 * getLegacyFitInterval(iodc, fitIntFlag);
-      endFit = Toe + (fitSeconds/2.0);
-
-         // If the toe is NOT offset, then the begin valid time can be set
-         // to the beginning of the two hour interval.
-         // NOTE: This is only true for GPS.   We can't do this
-         // for QZSS, even though it also broadcasts the LNAV message format.
-      if (signal.system==SatelliteSystem::GPS && isNominalToe)
+      // GPS fit interval is based on the fit interval flag and IODC.
+      // Nominally, GPS fit interval is 4 hours. When the fit interval flag is 1
+      // then the fit interval will be greater than 4 hours. See getLegacyFitInterval
+      // for more info.
+      uint32_t halfFitInterval = SEC_PER_HOUR * getLegacyFitInterval(iodc, fitIntFlag) / 2;
+      
+      // QZSS has a fixed fit interval of 2 hours instead
+      // of GPS's usual 4 hours. Also the fit interval flag
+      // is defined to be always zero (IS-QZSS-PNT-004 Table 4.1.1-2, Section 4.1.2.4)
+      if (signal.system == SatelliteSystem::QZSS)
       {
-         xmitSOW = xmitSOW - (xmitSOW % 7200);
+         halfFitInterval = SEC_PER_HOUR;
       }
-
-         // If there IS an offset, all we can assume is that we (hopefully)
-         // captured the earliest transmission and set the begin valid time
-         // to that value.
-         //
-         // @note Prior to GPS III, the offset was typically applied
-         // to BOTH the first and second data sets following a
-         // cutover.  So this means the SECOND data set will NOT be
-         // coerced to the top of the even hour start time if it
-         // wasn't collected at the top of the hour.
-      beginFit = GPSWeekSecond(xmitWeek, xmitSOW, xws.getTimeSystem());
-         // If an upload cutover, need some adjustment.
-         // Calculate the SOW aligned with the mid point and then
-         // calculate the number of seconds the toe is SHORT
-         // of that value.   That's how far the endValid needs
-         // to be adjusted.
-      if (!isNominalToe)
+      
+      // By default, the Toe is assumed to be the midpoint of the curve fit interval.
+      // (IS-GPS-200N 20.3.4.4, 20.3.4.5)
+      beginFit = Toe - halfFitInterval;
+      endFit = Toe + halfFitInterval;
+      
+      // If the Toe is non-nominal then it indicates an upload cutover and Toe is not
+      // the midpoint of the curve fit interval. The begin and end fit times must be adjusted.
+      //    * A nominal Toe always lies on an hour boundary (IS-GPS-200N 20.3.4.4). This covers
+      //      both GPS normal operations, GPS extended operations mode, and QZSS.
+      //    * The start of the CEI dataset transmission interval corresponds to the beginning of the
+      //      curve fit interval for the CEI. (IS-GPS-200N 20.3.4.4) 
+      //      With a nominal Toe, the start of transmission can be inferred. For a non-nominal Toe, 
+      //      the start of the transmission interval, and thus the beginning of the curve fit, 
+      //      cannot be assumed. For non-nominal Toe, all we can assume is that we (hopefully) capture 
+      //      the earliest transmission and set the begin fit time to that value.
+      //    * For a non-nominal Toe, the end of the curve fit interval must be adjusted since the Toe
+      //      is offset from the assumed curve fit interval midpoint. The Toe is offset
+      //      by a small negative deviation (IS-GPS-200N 30.3.4.5). Since the midpoint of the fit interval,
+      //      must be a multiple of 5 minutes (IS-GPS-200N 30.3.4.4), and the Toe is offset from the midpoint
+      //      by a small negative deviation (IS-GPS-200N 30.3.4.5), then the end fit rounds up to a 5 minute multiple.
+      //    * QZSS does not specify the relationship of fit interval to upload cutovers. So we do not adjust them.
+      uint32_t toeSOW = static_cast<uint32_t>(GPSWeekSecond(Toe).sow);
+      bool isNominalToe = toeSOW % SEC_PER_HOUR == 0;
+      if (signal.system == SatelliteSystem::GPS && !isNominalToe)
       {
-         long sow = (long) toeWS.sow;
-         long num900secIntervals = sow / 900;
-         long midPointSOW = (num900secIntervals+1) * 900;
-         double adjustUp = (double) (midPointSOW - sow);
-         endFit += adjustUp;
+         beginFit = xmitTime;
+         endFit += SEC_PER_5_MIN - (toeSOW % SEC_PER_5_MIN);
       }
    }
 
+
+      
+   std::string GPSLNavEph ::
+   getTerseHeader() const
+   {
+      return "SVN  PRN     Begin Fit        Toe          End Fit       URA     IODC      Health";
+   }
 
    void GPSLNavEph ::
    dump(std::ostream& s, DumpDetail dl) const
@@ -250,6 +261,29 @@ namespace gnsstk
       return false;
    }
 
+   bool GPSLNavEph::
+   isSameData(const NavDataPtr& right, bool ignore_timestamp) const
+   {
+      const std::shared_ptr<GPSLNavEph> eph = std::dynamic_pointer_cast<GPSLNavEph>(right);
+      
+      if (!eph)
+      {
+         return false;
+      }
+      return (GPSLNavData::isSameData(right, ignore_timestamp) &&
+         (isf2 == eph->isf2) &&
+         (isf3 == eph->isf3) &&
+         (fitIntFlag == eph->fitIntFlag) &&
+         (healthBits == eph->healthBits) && 
+         (uraIndex == eph->uraIndex) &&
+         (tgd == eph->tgd) &&
+         (alert2 == eph->alert2) &&
+         (iodc == eph->iodc) &&
+         (iode == eph->iode) &&
+         (alert3 == eph->alert3));
+
+         // Checked 6/6
+   }
 
    bool GPSLNavEphCEIComp ::
    operator()(const std::shared_ptr<GPSLNavEph> lhs,

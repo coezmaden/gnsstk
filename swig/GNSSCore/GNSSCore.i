@@ -61,9 +61,13 @@ ENUM_MAPPER(gnsstk::TrackingCode, TrackingCode, "gnsstk")
 ENUM_MAPPER(gnsstk::ObservationType, ObservationType, "gnsstk")
 ENUM_MAPPER(gnsstk::CorrectorType, CorrectorType, "gnsstk")
 ENUM_MAPPER(gnsstk::CorrDupHandling, CorrDupHandling, "gnsstk")
+// TimeSystem wrapping happens in RefTime.i
+// Not sure why importing TimeSystem.hpp does not also include the enum mapping
+ENUM_MAPPER(gnsstk::TimeSystem, TimeSystem, "gnsstk")
 
  // needs to be before RefFrameRlz.hpp at the very least.
 %import "CommonTime.hpp"
+%import "TimeSystem.hpp"
 
 %include "SatelliteSystem.hpp"
 %include "CarrierBand.hpp"
@@ -115,6 +119,8 @@ ENUM_MAPPER(gnsstk::CorrDupHandling, CorrDupHandling, "gnsstk")
 %shared_ptr(gnsstk::TropCorrector<gnsstk::GGHeightTropModel>)
 %shared_ptr(gnsstk::TropCorrector<gnsstk::NeillTropModel>)
 %shared_ptr(gnsstk::TropCorrector<gnsstk::GlobalTropModel>)
+%shared_ptr(gnsstk::TropCorrector<gnsstk::GCATTropModel>)
+%shared_ptr(gnsstk::TropCorrector<gnsstk::MOPSTropModel>)
 %shared_ptr(gnsstk::Transformer)
 %shared_ptr(gnsstk::HelmertTransformer)
 
@@ -146,6 +152,7 @@ ENUM_MAPPER(gnsstk::CorrDupHandling, CorrDupHandling, "gnsstk")
 %import "Vector.hpp"
 %import "Matrix.hpp"
 %import "MetReader.hpp"
+%import "TimeSystem.hpp"
 
 %include "AngleType.hpp"
 %include "AngleReduced.hpp"
@@ -161,6 +168,7 @@ ENUM_MAPPER(gnsstk::CorrDupHandling, CorrDupHandling, "gnsstk")
 %include "gps_constants.hpp"
 %include "SatelliteSystem.hpp"
 %template(std_vector_GNSS)       std::vector<gnsstk::SatelliteSystem>;
+%include "SatTimeSystem.hpp"
 %include "SatID.i"
 %template(std_vector_SatID)      std::vector<gnsstk::SatID>;
 %include "FreqConsts.hpp"
@@ -233,6 +241,8 @@ ENUM_MAPPER(gnsstk::CorrDupHandling, CorrDupHandling, "gnsstk")
 %template(GGHeightTropCorrector) gnsstk::TropCorrector<gnsstk::GGHeightTropModel>;
 %template(NeillTropCorrector) gnsstk::TropCorrector<gnsstk::NeillTropModel>;
 %template(GlobalTropCorrector) gnsstk::TropCorrector<gnsstk::GlobalTropModel>;
+%template(GCATTropCorrector) gnsstk::TropCorrector<gnsstk::GCATTropModel>;
+%template(MOPSTropCorrector) gnsstk::TropCorrector<gnsstk::MOPSTropModel>;
 %include "CorrectionResult.hpp"
 %template(CorrectionResultList) std::list<gnsstk::CorrectionResult>;
 %include "CorrectionResults.hpp"

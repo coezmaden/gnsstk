@@ -64,6 +64,9 @@ namespace gnsstk
           */
       bool validate() const override;
 
+         /// @copydoc NavData::getTerseHeader() 
+      std::string getTerseHeader() const override;
+
          /** Returns the time when the navigation message would have
           * first been available to the user equipment, i.e. the time
           * at which the final bit of a given broadcast navigation
@@ -86,6 +89,25 @@ namespace gnsstk
          /** Dump SV status information (e.g. health).
           * @param[in,out] s The stream to write the data to. */
       void dumpSVStatus(std::ostream& s) const override;
+
+      /*! @copydoc GPSLNavData::isSameData()
+       *
+       * Additional Checks at the GPSLNavEph Level
+       *
+       *    <table>
+       *     <tr><td>isf2<td>Integrity status flag for subframe 2
+       *     <tr><td>isf3<td>Integrity status flag for subframe 3
+       *     <tr><td>fitIntFlag<td>Fit Interval flag for subframe 2
+       *     <tr><td>healthBits<td>6 SV health bits from subframe 1, word 3
+       *     <tr><td>uraIndex<td>4-bit URA index from subframe 1, word 3
+       *     <tr><td>tgd<td>Ionospheric group delay in seconds
+       *     <tr><td>alert2<td>Alert flag from SF2 HOW
+       *     <tr><td>iodc<td>Issue Of Data-Clock for the ephemeris
+       *     <tr><td>iode<td>Issue Of Data-Ephemeris
+       *     <tr><td>alert3<td>Alert flag from SF3 HOW
+       *    </table>
+       */
+      bool isSameData(const NavDataPtr& right, bool ignore_timestamp = false) const override;
 
       CommonTime xmit2;   ///< Transmit time for subframe 2.
       CommonTime xmit3;   ///< Transmit time for subframe 3.

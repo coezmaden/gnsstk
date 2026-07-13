@@ -41,6 +41,7 @@
 #include "GPSLNavTimeOffset.hpp"
 #include "TestUtil.hpp"
 #include "CivilTime.hpp"
+#include "BasicTimeSystemConverter.hpp"
 #include <iostream>
 #include <sstream>
 #include <cmath>
@@ -80,6 +81,8 @@ public:
    { return false; }
    std::string getFactoryFormats() const override
    { return "Test"; }
+   std::unique_ptr<gnsstk::NavDataFactory> clone() override
+   { return std::unique_ptr<TestFactory>(new TestFactory(*this)); }
 };
 
 
@@ -122,7 +125,7 @@ getOffsetTest()
    navOut->signal.nav = gnsstk::NavType::GPSLNAV;
    navOut->signal.sat = gnsstk::SatID(23,gnsstk::SatelliteSystem::GPS);
    navOut->signal.xmitSat = gnsstk::SatID(32,gnsstk::SatelliteSystem::GPS);
-   toptr->deltatLS = 23; // set a simple, easy to verify value.
+   toptr->deltatLS = 17; // set a simple, easy to verify value.
    toptr->refTime = ct;
    TUASSERT(fact1->addNavData(navOut));
    TUCATCH(navLib->addFactory(ndfp));
@@ -131,16 +134,33 @@ getOffsetTest()
    double result = 0;
    TUASSERT(uut.getOffset(gnsstk::TimeSystem::GPS, gnsstk::TimeSystem::UTC,
                           ct+35, result));
-   TUASSERTFE(23.0, result);
-      // reverse the conversion and expect negative.
+   TUASSERTFE(17.0, result);
+      // Expect the NavTimeSystemConverter to match BasicTimeSystemConverter
+      // for this given data. At the very least, they should have the same
+      // sign.
+   gnsstk::BasicTimeSystemConverter btsc;
+   double result2;
+   TUASSERT(btsc.getOffset(gnsstk::TimeSystem::GPS, gnsstk::TimeSystem::UTC,
+                           ct+35, result2));
+   TUASSERTFE(result2, result);
+      // reverse the conversion and expect positive.
    gnsstk::CommonTime utc35(ct+35);
    utc35.setTimeSystem(gnsstk::TimeSystem::UTC);
    TUASSERT(uut.getOffset(gnsstk::TimeSystem::UTC, gnsstk::TimeSystem::GPS,
                           utc35, result));
-   TUASSERTFE(-23.0, result);
+   TUASSERTFE(-17.0, result);
       // expect this to not work
    TUASSERT(!uut.getOffset(gnsstk::TimeSystem::UTC, gnsstk::TimeSystem::BDT,
                            utc35, result));
+
+   double offset = 0;
+   // Returns 0 if same time system
+   TUASSERT(uut.getOffset(gnsstk::TimeSystem::GPS, gnsstk::TimeSystem::GPS, utc35, offset));
+   TUASSERTFEPS(offset, 0.0, 1e-7);
+
+   // Returns false if navLib is null
+   uut.navLib = nullptr;
+   TUASSERT(uut.getOffset(gnsstk::TimeSystem::GPS, gnsstk::TimeSystem::GAL, utc35, offset) == false);
    TURETURN();
 }
 

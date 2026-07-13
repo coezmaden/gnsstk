@@ -36,6 +36,7 @@
 //                            release, distribution is unlimited.
 //
 //==============================================================================
+#include "GPS_URA.hpp"
 #include "GPSCNav2Eph.hpp"
 #include "GPSWeekSecond.hpp"
 #include "TimeString.hpp"
@@ -113,6 +114,19 @@ namespace gnsstk
       }
    }
 
+   double GPSCNav2Eph ::
+   compositeIAURAUpperBound(const gnsstk::CommonTime &t, double elevation) const
+   {
+      try
+      {
+         return cnavCompositeIAURAUpperBound(t, top, elevation, uraED, uraNED0, uraNED1, uraNED2);
+      }
+      catch(const InvalidRequest& exc)
+      {
+         return std::numeric_limits<double>::quiet_NaN();
+      }
+   }
+
 
    void GPSCNav2Eph ::
    dumpSVStatus(std::ostream& s) const
@@ -163,5 +177,32 @@ namespace gnsstk
         << "              " << getDumpTimeHdr(DumpDetail::Full) << endl
         << "Subframe 2:   " << getDumpTime(DumpDetail::Full, xmitTime) << endl;
       s.flags(oldFlags);
+   }
+
+   bool GPSCNav2Eph::
+   isSameData(const NavDataPtr& right, bool ignore_timestamp) const
+   {
+      const std::shared_ptr<GPSCNav2Eph> eph = std::dynamic_pointer_cast<GPSCNav2Eph>(right);
+      
+      if (!eph)
+      {
+         return false;
+      }
+      return (OrbitDataKepler::isSameData(right, true) &&
+         (itow == eph->itow) &&
+         (healthL1C == eph->healthL1C) &&
+         (uraED == eph->uraED) &&
+         (uraNED0 == eph->uraNED0) &&
+         (uraNED1 == eph->uraNED1) &&
+         (uraNED2 == eph->uraNED2) &&
+         (integStat == eph->integStat) &&
+         (deltaA == eph->deltaA) &&
+         (dOMEGAdot == eph->dOMEGAdot) &&
+         (top == eph->top) &&
+         (tgd == eph->tgd) &&
+         (iscL1CP == eph->iscL1CP) &&
+         (iscL1CD == eph->iscL1CD));
+
+         // Checked 6/11/2024. Interesting naming conventions
    }
 }

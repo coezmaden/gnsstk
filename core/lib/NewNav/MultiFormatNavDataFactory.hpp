@@ -57,25 +57,31 @@ namespace gnsstk
        * NavLibrary implements high-level routines such as getXvt(),
        * while this class is set up to automatically include support
        * for available factory types.
-       * @note This class is intended to support all known factory
-       *   types implemented in libraries linked by the application,
-       *   which is why factories and addFactory() are declared
-       *   static.  You still must instantiate this class in order to
-       *   use it.  Other methods, such as setValidityFilter() and
-       *   setTypeFilter() are not declared static as they need to be
-       *   implemented using polymorphism so that this class behaves
-       *   correctly when used in conjunction with NavLibrary.
-       * @warning Overridden methods affect every instance of this
-       *   class due to the static data.
-       * @warning Instantiating more than one of this class at any
-       *   time will likely have unexpected results due to the shared
-       *   (static) data stored internally.  DON'T DO IT.
        */
    class MultiFormatNavDataFactory : public NavDataFactoryWithStoreFile
    {
    public:
          /// Initialize supportedSignals from factories.
       MultiFormatNavDataFactory();
+
+         /** Initializes supportedSignals from factories.
+          *  Sets the reference time epoch for all the NavDataFactory
+          *  objects.
+          * @param[in] refEpoch The reference time. Assumed to be invalid if
+          *   equivalent to \p CommonTime::BEGINNING_OF_TIME or
+          *   \p CommonTime::END_OF_TIME.
+          */
+      MultiFormatNavDataFactory(const CommonTime& refEpoch);
+
+      MultiFormatNavDataFactory(const MultiFormatNavDataFactory& ndf);
+
+      MultiFormatNavDataFactory& operator=(const MultiFormatNavDataFactory& ndf);
+      
+         // Move constructor/assignment are deleted until there is a requirement for them.
+
+      MultiFormatNavDataFactory(const MultiFormatNavDataFactory&& ndf) = delete;
+
+      MultiFormatNavDataFactory&& operator=(const MultiFormatNavDataFactory&& ndf) = delete;
 
          /** Clear all associated factories so as to avoid surprises
           * if you ever instantiate more than one
@@ -99,6 +105,26 @@ namespace gnsstk
       bool find(const NavMessageID& nmid, const CommonTime& when,
                 NavDataPtr& navOut, SVHealth xmitHealth, NavValidityType valid,
                 NavSearchOrder order) override;
+
+
+         /** Return all messages that match the criteria set by the following arguments
+          * @param[in] nmid Specify the message type, satellite and
+          *   codes to match.
+          * @param[in] whenRange The time range of interest to search for data. Orbit data
+          *   object (Ephemeris, Almanac) is "within" this range if its fit interval overlaps
+          *   this range. Fit interval computed in the overloaded fixFit() and overlaps as defined
+          *   in gnsstk::TimeRange.
+          * @param[in] xmitHealth The desired health status of the
+          *   transmitting satellite.
+          * @param[out] navOut The resulting navigation messages.
+          * @param[in] unique Return only unique messages. Uniqueness is defined by isSameData() 
+          *   on each NavData object. See documentation of isSameData() for more info.
+          * @param[in] valid Specify whether to search only for valid
+          *   or invalid messages, or both.
+          * @return true if successful.  If false, navOut will be untouched. */
+      virtual bool findAll(const NavMessageID& nmid, const TimeRange& whenRange,
+                               NavDataPtrList& navOut, bool unique, SVHealth xmitHealth,
+                               NavValidityType valid) override;
 
          /// @copydoc NavDataFactory::getOffset()
       bool getOffset(TimeSystem fromSys, TimeSystem toSys,
@@ -296,8 +322,8 @@ namespace gnsstk
       bool process(const std::string& filename,
                    NavDataFactoryCallback& cb) override;
 
-         /** Add a new factory to the library.  The factory must be
-          * derived from NavDataFactoryWithStoreFile but not a
+         /** Add a new factory to the library.  The factory must be empty
+          * and derived from NavDataFactoryWithStoreFile but not a
           * MultiFormatNavDataFactory.
           * @param[in] fact The NavDataFactory object to add to the library.
           * @return false if fact is not a valid factory class.
@@ -323,6 +349,17 @@ namespace gnsstk
           */
       void setControl(const FactoryControl& ctrl) override;
 
+         /** @note Disallow this method by throwing exception.
+          * Reference epoch must be set via calling the constructor of this class.
+          * @param[in] refEpoch The reference time. Assumed to be invalid if
+          *   equivalent to \p CommonTime::BEGINNING_OF_TIME or
+          *   \p CommonTime::END_OF_TIME.
+          **/
+      void setRefEpoch(const CommonTime& refEpoch) override;
+
+         /// @copydoc NavDataFactory::clone() 
+      std::unique_ptr<NavDataFactory> clone() override;  
+
    protected:
          /** Known nav data factories, organized by signal to make
           * searches simpler and/or quicker.  Declared static so that
@@ -332,9 +369,11 @@ namespace gnsstk
          /** Keep a cached copy of the shared_ptr to the static
           * NavDataFactoryMap so that windows doesn't destroy it before
           * destroying this. */
-      std::shared_ptr<NavDataFactoryMap> myFactories;
+      std::shared_ptr<NavDataFactoryMap> myFactories = std::make_shared<NavDataFactoryMap>();
+
 
    private:
+
          /** This method makes no sense in this context, because we
           * don't want to load, e.g. RINEX and SP3 into the same
           * NavMessageMap, because SP3's find method performs
@@ -344,6 +383,15 @@ namespace gnsstk
                        NavNearMessageMap& navNearMap,
                        OffsetCvtMap& ofsMap) override
       { return false; }
+
+         /** Clone a map of factory objects into this instance's #myFactories
+          * 
+          * Clears out the current #myFactories then updates it with clones of given factories.
+          * Also updates #supportedSignals based on the new set of factories.
+          * 
+          * @param[in] from collection of factories to clone into this instance's #myFactories.
+          */
+      void cloneToMyFactories(const NavDataFactoryMap& from);
    };
 
 
@@ -352,7 +400,7 @@ namespace gnsstk
    getFactory()
    {
       std::shared_ptr<Fact> rv;
-      for (auto& fi : NDFUniqIterator<NavDataFactoryMap>(factories()))
+      for (auto& fi : NDFUniqIterator<NavDataFactoryMap>(myFactories))
       {
          rv = std::dynamic_pointer_cast<Fact>(fi.second);
          if (rv)

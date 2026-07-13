@@ -56,7 +56,8 @@ namespace gnsstk
           * @param[in] toSys The time system to convert to.
           * @param[in] t The time at which the offset is being
           *   requested (i.e. the time being converted).
-          * @param[out] offs The resulting offset, if available.
+          * @param[out] offs The resulting offset in seconds, 
+          *   if available, where when(toSys)=when(fromSys)-offset.
           * @return true if successful, false if unavailable. */
       bool getOffset(TimeSystem fromSys, TimeSystem toSys,
                      const CommonTime& t, double& offs) override;
@@ -81,15 +82,15 @@ namespace gnsstk
 
    protected:
          /// Time system being converted from using toffs.
-      TimeSystem fromSystem;
+      TimeSystem fromSystem{TimeSystem::Unknown};
          /// Time system being converted to using toffs.
-      TimeSystem toSystem;
+      TimeSystem toSystem{TimeSystem::Unknown};
          /// First time that toffs is known to be valid.
       CommonTime fromTimeStamp;
          /// Final time that toffs is known to be valid.
       CommonTime toTimeStamp;
          /// Stored offset for time system conversion.
-      double toffs;
+      double toffs{0.0};
    };
 }
       //@}
