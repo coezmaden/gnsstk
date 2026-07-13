@@ -39,6 +39,7 @@
 #ifndef GNSSTK_GLOCNAVHEADER_HPP
 #define GNSSTK_GLOCNAVHEADER_HPP
 
+#include <cstdint>
 #include "CommonTime.hpp"
 #include "SVHealth.hpp"
 
